@@ -24,17 +24,26 @@ func Setup(r *gin.Engine) {
 		auth.POST("/signup", middleware.RequireTempAuth(), handlers.Signup)
 	}
 
-	// Admin routes — only X-Admin-Key required, no JWT
+	// Admin routes — X-Admin-Key required
 	admin := api.Group("/admin")
 	admin.Use(middleware.RequireAdmin())
 	{
+		// Mock Tests
 		admin.GET("/mocktests", handlers.ListAdminMockTests)
 		admin.POST("/mocktests", handlers.CreateMockTest)
 		admin.GET("/mocktests/:id/questions", handlers.ListAdminMockTestQuestions)
 		admin.POST("/mocktests/:id/questions", handlers.AddQuestionToMockTest)
+
+		// Live Classes
+		admin.GET("/live/classes", handlers.ListAdminLiveClasses)
+		admin.POST("/live/classes", handlers.CreateLiveClass)
+		admin.DELETE("/live/classes/:id", handlers.EndLiveClass)
+		admin.POST("/live/classes/:id/questions", handlers.PushLiveQuestion)
+		admin.DELETE("/live/classes/:id/questions/:qid", handlers.EndLiveQuestion)
+		admin.GET("/live/classes/:id/questions/:qid/leaderboard", handlers.GetQuestionLeaderboard)
 	}
 
-	// Protected routes
+	// Protected routes — JWT required
 	protected := api.Group("/")
 	protected.Use(middleware.RequireAuth())
 	{
@@ -59,5 +68,15 @@ func Setup(r *gin.Engine) {
 		// Profile
 		protected.GET("/profile/me", handlers.GetProfile)
 		protected.PUT("/profile/update", handlers.UpdateProfile)
+
+		// Live Classes (student)
+		protected.GET("/live/classes", handlers.ListActiveLiveClasses)
+		protected.GET("/live/classes/:id", handlers.GetLiveClass)
+
+		// Push token registration
+		protected.POST("/users/push-token", handlers.RegisterPushToken)
 	}
+
+	// WebSocket — auth via query params (no JWT middleware)
+	r.GET("/ws/live/:id", handlers.LiveClassWS)
 }

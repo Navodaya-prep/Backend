@@ -7,6 +7,7 @@ import (
 
 	"navodaya-api/config"
 	"navodaya-api/routes"
+	"navodaya-api/ws"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -22,10 +23,13 @@ func main() {
 	// Connect MongoDB
 	config.ConnectDB()
 
+	// Start WebSocket hub
+	go ws.GlobalHub.Run()
+
 	// Setup Gin
 	r := gin.Default()
 
-	// CORS — allow React Native app
+	// CORS — allow React Native app and admin portal
 	r.Use(cors.New(cors.Config{
 		AllowAllOrigins:  true,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
