@@ -13,6 +13,64 @@ import (
 	"navodaya-api/utils"
 )
 
+// ListAdminMockTests — GET /admin/mocktests
+func ListAdminMockTests(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pipeline := bson.A{
+		bson.M{"$sort": bson.M{"createdAt": -1}},
+		bson.M{"$addFields": bson.M{
+			"questionCount": bson.M{"$size": bson.M{"$ifNull": bson.A{"$questions", bson.A{}}}},
+		}},
+		bson.M{"$project": bson.M{"questions": 0}},
+	}
+
+	cursor, err := config.GetCollection("mocktests").Aggregate(ctx, pipeline)
+	if err != nil {
+		utils.ErrorRes(c, http.StatusInternalServerError, "FETCH_FAILED", "Failed to fetch mock tests")
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var tests []bson.M
+	cursor.All(ctx, &tests)
+	if tests == nil {
+		tests = []bson.M{}
+	}
+
+	utils.Success(c, http.StatusOK, gin.H{"tests": tests}, "Success")
+}
+
+// ListAdminMockTestQuestions — GET /admin/mocktests/:id/questions
+func ListAdminMockTestQuestions(c *gin.Context) {
+	testID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_ID", "Invalid test ID")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var test models.MockTest
+	if err := config.GetCollection("mocktests").FindOne(ctx, bson.M{"_id": testID}).Decode(&test); err != nil {
+		utils.ErrorRes(c, http.StatusNotFound, "NOT_FOUND", "Mock test not found")
+		return
+	}
+
+	questions := []models.Question{}
+	if len(test.QuestionIDs) > 0 {
+		qCursor, err := config.GetCollection("questions").Find(ctx, bson.M{"_id": bson.M{"$in": test.QuestionIDs}})
+		if err == nil {
+			qCursor.All(ctx, &questions)
+			qCursor.Close(ctx)
+		}
+	}
+
+	utils.Success(c, http.StatusOK, gin.H{"questions": questions}, "Success")
+}
+
 // CreateMockTest — POST /admin/mocktests
 // Body: { title, subject, duration, classLevel, isPremium }
 func CreateMockTest(c *gin.Context) {
