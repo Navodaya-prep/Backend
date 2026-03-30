@@ -30,7 +30,7 @@ func SendOTP(c *gin.Context) {
 		return
 	}
 
-	_, err := utils.CreateOTP(body.Phone)
+	err := utils.CreateOTP(body.Phone)
 	if err != nil {
 		utils.ErrorRes(c, http.StatusInternalServerError, "OTP_SEND_FAILED", "Failed to send OTP")
 		return
