@@ -5,11 +5,12 @@ import (
 	"log"
 	"os"
 
+	"navodaya-api/config"
+	"navodaya-api/routes"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"navodaya-api/config"
-	"navodaya-api/routes"
 )
 
 func main() {
@@ -28,7 +29,7 @@ func main() {
 	r.Use(cors.New(cors.Config{
 		AllowAllOrigins:  true,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Admin-Key"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: false,
 	}))
@@ -38,7 +39,7 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "5000"
+		port = "8080"
 	}
 
 	fmt.Printf("\n🚀 Navodaya Prime Go API running on http://localhost:%s\n", port)

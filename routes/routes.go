@@ -28,7 +28,9 @@ func Setup(r *gin.Engine) {
 	admin := api.Group("/admin")
 	admin.Use(middleware.RequireAdmin())
 	{
+		admin.GET("/mocktests", handlers.ListAdminMockTests)
 		admin.POST("/mocktests", handlers.CreateMockTest)
+		admin.GET("/mocktests/:id/questions", handlers.ListAdminMockTestQuestions)
 		admin.POST("/mocktests/:id/questions", handlers.AddQuestionToMockTest)
 	}
 
