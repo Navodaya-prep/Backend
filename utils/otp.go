@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"os"
@@ -22,21 +23,20 @@ func GenerateOTP() string {
 }
 
 func sendOTPViaSMS(phone, otp string) error {
-	apiKey := os.Getenv("FAST2SMS_API_KEY")
+	apiKey := os.Getenv("TWOFACTOR_API_KEY")
 	if apiKey == "" {
-		return fmt.Errorf("FAST2SMS_API_KEY not set")
+		return fmt.Errorf("TWOFACTOR_API_KEY not set")
 	}
 
 	url := fmt.Sprintf(
-		"https://www.fast2sms.com/dev/bulkV2?authorization=%s&variables_values=%s&route=otp&numbers=%s",
-		apiKey, otp, phone,
+		"https://2factor.in/API/V1/%s/SMS/%s/%s/AUTOGEN",
+		apiKey, phone, otp,
 	)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("cache-control", "no-cache")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
@@ -46,7 +46,8 @@ func sendOTPViaSMS(phone, otp string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("SMS send failed with status: %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("SMS send failed with status: %d body: %s", resp.StatusCode, string(body))
 	}
 	return nil
 }
