@@ -6,13 +6,14 @@ import (
 	"regexp"
 	"time"
 
+	"navodaya-api/config"
+	"navodaya-api/models"
+	"navodaya-api/utils"
+
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"navodaya-api/config"
-	"navodaya-api/models"
-	"navodaya-api/utils"
 )
 
 var phoneRegex = regexp.MustCompile(`^[6-9]\d{9}$`)
@@ -84,6 +85,20 @@ func VerifyOTP(c *gin.Context) {
 		return
 	}
 
+	// Update streak and last active date on login
+	newStreak := utils.CalculateStreak(user.LastActiveDate, user.Streak)
+	now := time.Now()
+	col.UpdateOne(ctx, bson.M{"_id": user.ID}, bson.M{
+		"$set": bson.M{
+			"lastActiveDate": now,
+			"streak":         newStreak,
+			"updatedAt":      now,
+		},
+	})
+
+	// Fetch updated user data
+	col.FindOne(ctx, bson.M{"_id": user.ID}).Decode(&user)
+
 	// Existing user — return full token
 	token, err := utils.SignToken(user.ID.Hex(), user.Phone)
 	if err != nil {
@@ -124,16 +139,17 @@ func Signup(c *gin.Context) {
 
 	now := time.Now()
 	user := models.User{
-		ID:         primitive.NewObjectID(),
-		Name:       body.Name,
-		Phone:      phone.(string),
-		ClassLevel: body.ClassLevel,
-		State:      body.State,
-		StarPoints: 0,
-		Streak:     0,
-		IsPremium:  false,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		ID:             primitive.NewObjectID(),
+		Name:           body.Name,
+		Phone:          phone.(string),
+		ClassLevel:     body.ClassLevel,
+		State:          body.State,
+		StarPoints:     0,
+		Streak:         1, // First day streak
+		IsPremium:      false,
+		LastActiveDate: &now,
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}
 
 	_, err = col.InsertOne(ctx, user)

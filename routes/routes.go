@@ -3,9 +3,10 @@ package routes
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"navodaya-api/handlers"
 	"navodaya-api/middleware"
+
+	"github.com/gin-gonic/gin"
 )
 
 func Setup(r *gin.Engine) {
@@ -26,13 +27,39 @@ func Setup(r *gin.Engine) {
 
 	// Admin routes — X-Admin-Key required
 	admin := api.Group("/admin")
+
+	// Admin auth routes (public)
+	adminAuth := admin.Group("/auth")
+	{
+		adminAuth.POST("/login", handlers.AdminLogin)
+	}
+
+	// Protected admin routes (JWT required)
 	admin.Use(middleware.RequireAdmin())
 	{
+		// Admin profile
+		admin.GET("/auth/profile", handlers.GetAdminProfile)
+		admin.PUT("/auth/profile", handlers.UpdateAdminProfile)
+		admin.PUT("/auth/change-password", handlers.ChangeAdminPassword)
+
+		// Admin management (Super Admin only)
+		adminManage := admin.Group("/manage")
+		adminManage.Use(middleware.RequireSuperAdmin())
+		{
+			adminManage.GET("/admins", handlers.ListAdmins)
+			adminManage.POST("/admins/invite", handlers.InviteAdmin)
+			adminManage.DELETE("/admins/:id", handlers.DeleteAdmin)
+		}
+
 		// Mock Tests
 		admin.GET("/mocktests", handlers.ListAdminMockTests)
 		admin.POST("/mocktests", handlers.CreateMockTest)
+		admin.DELETE("/mocktests/:id", handlers.DeleteMockTest)
 		admin.GET("/mocktests/:id/questions", handlers.ListAdminMockTestQuestions)
 		admin.POST("/mocktests/:id/questions", handlers.AddQuestionToMockTest)
+		admin.PUT("/mocktests/:id/questions/reorder", handlers.ReorderMockTestQuestions)
+		admin.PUT("/mocktests/:id/questions/:questionId", handlers.UpdateMockTestQuestion)
+		admin.DELETE("/mocktests/:id/questions/:questionId", handlers.DeleteMockTestQuestion)
 
 		// Live Classes
 		admin.GET("/live/classes", handlers.ListAdminLiveClasses)
@@ -41,20 +68,65 @@ func Setup(r *gin.Engine) {
 		admin.POST("/live/classes/:id/questions", handlers.PushLiveQuestion)
 		admin.DELETE("/live/classes/:id/questions/:qid", handlers.EndLiveQuestion)
 		admin.GET("/live/classes/:id/questions/:qid/leaderboard", handlers.GetQuestionLeaderboard)
+
+		// Practice Hub — Subjects
+		admin.GET("/practice/subjects", handlers.AdminListSubjects)
+		admin.POST("/practice/subjects", handlers.AdminCreateSubject)
+		admin.PUT("/practice/subjects/:id", handlers.AdminUpdateSubject)
+		admin.DELETE("/practice/subjects/:id", handlers.AdminDeleteSubject)
+
+		// Practice Hub — Chapters (scoped under subject)
+		admin.GET("/practice/subjects/:id/chapters", handlers.AdminListChapters)
+		admin.POST("/practice/subjects/:id/chapters", handlers.AdminCreateChapter)
+		admin.PUT("/practice/chapters/:id", handlers.AdminUpdateChapter)
+		admin.DELETE("/practice/chapters/:id", handlers.AdminDeleteChapter)
+
+		// Practice Hub — Questions (scoped under chapter)
+		admin.GET("/practice/chapters/:id/questions", handlers.AdminListChapterQuestions)
+		admin.POST("/practice/chapters/:id/questions", handlers.AdminCreateQuestion)
+		admin.PUT("/practice/questions/:id", handlers.AdminUpdateQuestion)
+		admin.DELETE("/practice/questions/:id", handlers.AdminDeleteQuestion)
+
+		// Recorded Classes — Courses
+		admin.GET("/courses", handlers.AdminListCourses)
+		admin.POST("/courses", handlers.AdminCreateCourse)
+		admin.PUT("/courses/:id", handlers.AdminUpdateCourse)
+		admin.DELETE("/courses/:id", handlers.AdminDeleteCourse)
+
+		// Recorded Classes — Chapters (scoped under course)
+		admin.GET("/courses/:id/chapters", handlers.AdminListCourseChapters)
+		admin.POST("/courses/:id/chapters", handlers.AdminCreateCourseChapter)
+		// PUT/DELETE /admin/chapters/:id reuses practice hub handlers (shared Chapter model)
+
+		// Recorded Classes — Lessons (scoped under chapter)
+		admin.GET("/chapters/:id/lessons", handlers.AdminListLessons)
+		admin.POST("/chapters/:id/lessons", handlers.AdminCreateLesson)
+		admin.PUT("/lessons/:id", handlers.AdminUpdateLesson)
+		admin.DELETE("/lessons/:id", handlers.AdminDeleteLesson)
 	}
 
 	// Protected routes — JWT required
 	protected := api.Group("/")
 	protected.Use(middleware.RequireAuth())
+	protected.Use(middleware.TrackActivity()) // Track user activity for streak
 	{
 		// Courses
 		protected.GET("/courses", handlers.ListCourses)
 		protected.GET("/courses/:id", handlers.GetCourse)
 		protected.GET("/courses/:id/chapters", handlers.GetCourseChapters)
+		protected.GET("/courses/:id/chapters/progress", handlers.GetCourseChaptersWithProgress)
+		protected.GET("/chapters/:id/lessons", handlers.GetChapterLessons)
+		protected.POST("/lessons/:id/complete", handlers.MarkLessonComplete)
 
-		// Practice
+		// Practice (legacy)
 		protected.GET("/practice/questions/:chapterId", handlers.GetPracticeQuestions)
 		protected.POST("/practice/submit", handlers.SubmitPractice)
+
+		// Practice Hub (student)
+		protected.GET("/practice/subjects", handlers.ListSubjects)
+		protected.GET("/practice/subjects/:id/chapters", handlers.ListSubjectChapters)
+		protected.GET("/practice/chapters/:id/questions", handlers.GetChapterQuestions)
+		protected.POST("/practice/chapters/:id/submit", handlers.SubmitChapterPractice)
 
 		// Mock Tests
 		protected.GET("/mocktests", handlers.ListMockTests)

@@ -5,12 +5,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"navodaya-api/config"
 	"navodaya-api/models"
 	"navodaya-api/utils"
+
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // ListAdminMockTests — GET /admin/mocktests
@@ -186,4 +187,158 @@ func AddQuestionToMockTest(c *gin.Context) {
 	}
 
 	utils.Success(c, http.StatusCreated, gin.H{"question": question}, "Question added to test")
+}
+
+// DeleteMockTest — DELETE /admin/mocktests/:id
+func DeleteMockTest(c *gin.Context) {
+	testID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_ID", "Invalid test ID")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result, err := config.GetCollection("mocktests").DeleteOne(ctx, bson.M{"_id": testID})
+	if err != nil || result.DeletedCount == 0 {
+		utils.ErrorRes(c, http.StatusNotFound, "NOT_FOUND", "Mock test not found")
+		return
+	}
+
+	utils.Success(c, http.StatusOK, gin.H{"deletedId": testID.Hex()}, "Mock test deleted")
+}
+
+// UpdateMockTestQuestion — PUT /admin/mocktests/:id/questions/:questionId
+func UpdateMockTestQuestion(c *gin.Context) {
+	questionID, err := primitive.ObjectIDFromHex(c.Param("questionId"))
+	if err != nil {
+		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_ID", "Invalid question ID")
+		return
+	}
+
+	var body struct {
+		Text         string   `json:"text" binding:"required"`
+		Options      []string `json:"options" binding:"required"`
+		CorrectIndex int      `json:"correctIndex"`
+		Explanation  string   `json:"explanation"`
+		Subject      string   `json:"subject"`
+		Difficulty   string   `json:"difficulty"`
+		ClassLevel   string   `json:"classLevel"`
+		IsPremium    bool     `json:"isPremium"`
+		Tags         []string `json:"tags"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		utils.ErrorRes(c, http.StatusBadRequest, "MISSING_FIELDS", "text and options are required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{
+		"$set": bson.M{
+			"text":         body.Text,
+			"options":      body.Options,
+			"correctIndex": body.CorrectIndex,
+			"explanation":  body.Explanation,
+			"subject":      body.Subject,
+			"difficulty":   body.Difficulty,
+			"classLevel":   body.ClassLevel,
+			"isPremium":    body.IsPremium,
+			"tags":         body.Tags,
+			"updatedAt":    time.Now(),
+		},
+	}
+
+	result, err := config.GetCollection("questions").UpdateOne(ctx, bson.M{"_id": questionID}, update)
+	if err != nil || result.MatchedCount == 0 {
+		utils.ErrorRes(c, http.StatusNotFound, "NOT_FOUND", "Question not found")
+		return
+	}
+
+	utils.Success(c, http.StatusOK, gin.H{"questionId": questionID.Hex()}, "Question updated")
+}
+
+// DeleteMockTestQuestion — DELETE /admin/mocktests/:id/questions/:questionId
+func DeleteMockTestQuestion(c *gin.Context) {
+	testID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_TEST_ID", "Invalid test ID")
+		return
+	}
+
+	questionID, err := primitive.ObjectIDFromHex(c.Param("questionId"))
+	if err != nil {
+		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_QUESTION_ID", "Invalid question ID")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Remove question ID from test's questions array
+	_, err = config.GetCollection("mocktests").UpdateOne(
+		ctx,
+		bson.M{"_id": testID},
+		bson.M{"$pull": bson.M{"questions": questionID}},
+	)
+	if err != nil {
+		utils.ErrorRes(c, http.StatusInternalServerError, "UPDATE_FAILED", "Failed to remove question from test")
+		return
+	}
+
+	// Delete the question document
+	_, err = config.GetCollection("questions").DeleteOne(ctx, bson.M{"_id": questionID})
+	if err != nil {
+		utils.ErrorRes(c, http.StatusInternalServerError, "DELETE_FAILED", "Failed to delete question")
+		return
+	}
+
+	utils.Success(c, http.StatusOK, gin.H{"deletedId": questionID.Hex()}, "Question deleted")
+}
+
+// ReorderMockTestQuestions — PUT /admin/mocktests/:id/questions/reorder
+// Body: { questionIds: [] } - array of question IDs in the new order
+func ReorderMockTestQuestions(c *gin.Context) {
+	testID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_ID", "Invalid test ID")
+		return
+	}
+
+	var body struct {
+		QuestionIDs []string `json:"questionIds" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		utils.ErrorRes(c, http.StatusBadRequest, "MISSING_FIELDS", "questionIds array is required")
+		return
+	}
+
+	// Convert string IDs to ObjectIDs
+	questionObjIDs := make([]primitive.ObjectID, len(body.QuestionIDs))
+	for i, idStr := range body.QuestionIDs {
+		objID, err := primitive.ObjectIDFromHex(idStr)
+		if err != nil {
+			utils.ErrorRes(c, http.StatusBadRequest, "INVALID_QUESTION_ID", "Invalid question ID in array")
+			return
+		}
+		questionObjIDs[i] = objID
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Update the questions array in the test
+	result, err := config.GetCollection("mocktests").UpdateOne(
+		ctx,
+		bson.M{"_id": testID},
+		bson.M{"$set": bson.M{"questions": questionObjIDs}},
+	)
+	if err != nil || result.MatchedCount == 0 {
+		utils.ErrorRes(c, http.StatusNotFound, "NOT_FOUND", "Mock test not found")
+		return
+	}
+
+	utils.Success(c, http.StatusOK, gin.H{"message": "Questions reordered successfully"}, "Success")
 }

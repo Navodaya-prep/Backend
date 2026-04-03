@@ -5,12 +5,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"navodaya-api/config"
 	"navodaya-api/models"
 	"navodaya-api/utils"
+
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func GetProfile(c *gin.Context) {
@@ -28,6 +29,15 @@ func GetProfile(c *gin.Context) {
 	if err := config.GetCollection("users").FindOne(ctx, bson.M{"_id": userID}).Decode(&user); err != nil {
 		utils.ErrorRes(c, http.StatusNotFound, "NOT_FOUND", "User not found")
 		return
+	}
+
+	// Ensure streak is up-to-date
+	currentStreak := utils.CalculateStreak(user.LastActiveDate, user.Streak)
+	if currentStreak != user.Streak {
+		config.GetCollection("users").UpdateOne(ctx, bson.M{"_id": userID}, bson.M{
+			"$set": bson.M{"streak": currentStreak, "updatedAt": time.Now()},
+		})
+		user.Streak = currentStreak
 	}
 
 	// Aggregate stats

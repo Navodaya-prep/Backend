@@ -21,11 +21,12 @@ type Course struct {
 }
 
 type Chapter struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	CourseID    primitive.ObjectID `bson:"courseId" json:"courseId"`
-	Title       string             `bson:"title" json:"title"`
-	Description string             `bson:"description" json:"description"`
-	Order       int                `bson:"order" json:"order"`
-	IsPremium   bool               `bson:"isPremium" json:"isPremium"`
-	CreatedAt   time.Time          `bson:"createdAt" json:"createdAt"`
+	ID          primitive.ObjectID  `bson:"_id,omitempty" json:"id"`
+	CourseID    *primitive.ObjectID `bson:"courseId,omitempty" json:"courseId,omitempty"`
+	SubjectID   *primitive.ObjectID `bson:"subjectId,omitempty" json:"subjectId,omitempty"`
+	Title       string              `bson:"title" json:"title"`
+	Description string              `bson:"description" json:"description"`
+	Order       int                 `bson:"order" json:"order"`
+	IsPremium   bool                `bson:"isPremium" json:"isPremium"`
+	CreatedAt   time.Time           `bson:"createdAt" json:"createdAt"`
 }

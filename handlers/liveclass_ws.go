@@ -2,16 +2,16 @@ package handlers
 
 import (
 	"net/http"
-	"os"
+
+	"navodaya-api/config"
+	"navodaya-api/models"
+	"navodaya-api/utils"
+	"navodaya-api/ws"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"navodaya-api/config"
-	"navodaya-api/models"
-	"navodaya-api/utils"
-	"navodaya-api/ws"
 )
 
 var upgrader = websocket.Upgrader{
@@ -23,7 +23,7 @@ var upgrader = websocket.Upgrader{
 // LiveClassWS — GET /ws/live/:id
 // Auth via query params:
 //   - Students:  ?token=<jwt>&name=<userName>
-//   - Teachers:  ?adminKey=<key>&name=<teacherName>
+//   - Teachers:  ?adminToken=<jwt>&name=<teacherName>
 func LiveClassWS(c *gin.Context) {
 	classID := c.Param("id")
 	if _, err := primitive.ObjectIDFromHex(classID); err != nil {
@@ -34,21 +34,22 @@ func LiveClassWS(c *gin.Context) {
 	var userID, userName string
 	var isTeacher bool
 
-	adminKey := c.Query("adminKey")
+	adminToken := c.Query("adminToken")
 	token := c.Query("token")
 	name := c.Query("name")
 
-	if adminKey != "" {
-		// Teacher connection — validate admin key
-		if adminKey != os.Getenv("ADMIN_SECRET") {
-			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+	if adminToken != "" {
+		// Teacher connection — validate admin JWT token
+		adminClaims, err := utils.ParseAdminToken(adminToken)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid admin token"})
 			return
 		}
 		isTeacher = true
-		userID = "teacher"
+		userID = adminClaims.AdminID
 		userName = name
 		if userName == "" {
-			userName = "Teacher"
+			userName = adminClaims.Email // fallback to email
 		}
 	} else if token != "" {
 		// Student connection — validate JWT
@@ -69,7 +70,7 @@ func LiveClassWS(c *gin.Context) {
 			userName = name // fallback to query param
 		}
 	} else {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "token or adminKey required"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "token or adminToken required"})
 		return
 	}
 
