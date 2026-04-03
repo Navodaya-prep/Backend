@@ -17,6 +17,8 @@ type Question struct {
 	Difficulty   string              `bson:"difficulty" json:"difficulty"`
 	ClassLevel   string              `bson:"classLevel" json:"classLevel"`
 	IsPremium    bool                `bson:"isPremium" json:"isPremium"`
+	IsPYQ        bool                `bson:"isPYQ" json:"isPYQ"`       // Previous Year Question
+	ExamYear     string              `bson:"examYear" json:"examYear"` // e.g., "2024", "2023"
 	Tags         []string            `bson:"tags" json:"tags"`
 	CreatedAt    time.Time           `bson:"createdAt" json:"createdAt"`
 }

@@ -103,6 +103,26 @@ func Setup(r *gin.Engine) {
 		admin.POST("/chapters/:id/lessons", handlers.AdminCreateLesson)
 		admin.PUT("/lessons/:id", handlers.AdminUpdateLesson)
 		admin.DELETE("/lessons/:id", handlers.AdminDeleteLesson)
+
+		// Settings (all admins can view, only super admin can update)
+		admin.GET("/settings", handlers.GetSettings)
+
+		// Daily Challenge (Super Admin only)
+		dailyAdmin := admin.Group("/daily-challenge")
+		dailyAdmin.Use(middleware.RequireSuperAdmin())
+		{
+			dailyAdmin.GET("", handlers.AdminListChallenges)
+			dailyAdmin.POST("", handlers.AdminCreateChallenge)
+			dailyAdmin.PUT("/:id", handlers.AdminUpdateChallenge)
+			dailyAdmin.DELETE("/:id", handlers.AdminDeleteChallenge)
+		}
+	}
+
+	// Super Admin only settings
+	superAdminSettings := api.Group("/admin/settings")
+	superAdminSettings.Use(middleware.RequireAdmin(), middleware.RequireSuperAdmin())
+	{
+		superAdminSettings.PUT("", handlers.UpdateSettings)
 	}
 
 	// Protected routes — JWT required
@@ -140,6 +160,16 @@ func Setup(r *gin.Engine) {
 		// Profile
 		protected.GET("/profile/me", handlers.GetProfile)
 		protected.PUT("/profile/update", handlers.UpdateProfile)
+
+		// Settings (read-only for students)
+		protected.GET("/settings", handlers.GetSettings)
+
+		// Daily Challenge (student)
+		protected.GET("/daily-challenge/today", handlers.GetTodayChallenge)
+		protected.POST("/daily-challenge/submit", handlers.SubmitDailyChallenge)
+		protected.POST("/daily-challenge/reveal", handlers.RevealDailyChallenge)
+		protected.GET("/daily-challenge/leaderboard", handlers.GetDailyChallengeLeaderboard)
+		protected.GET("/daily-challenge/practice", handlers.GetDailyChallengePractice)
 
 		// Live Classes (student)
 		protected.GET("/live/classes", handlers.ListActiveLiveClasses)

@@ -128,6 +128,8 @@ func AddQuestionToMockTest(c *gin.Context) {
 		Difficulty   string   `json:"difficulty"`
 		ClassLevel   string   `json:"classLevel"`
 		IsPremium    bool     `json:"isPremium"`
+		IsPYQ        bool     `json:"isPYQ"`
+		ExamYear     string   `json:"examYear"`
 		Tags         []string `json:"tags"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -163,6 +165,8 @@ func AddQuestionToMockTest(c *gin.Context) {
 		Difficulty:   body.Difficulty,
 		ClassLevel:   body.ClassLevel,
 		IsPremium:    body.IsPremium,
+		IsPYQ:        body.IsPYQ,
+		ExamYear:     body.ExamYear,
 		Tags:         body.Tags,
 		CreatedAt:    time.Now(),
 	}
@@ -226,6 +230,8 @@ func UpdateMockTestQuestion(c *gin.Context) {
 		Difficulty   string   `json:"difficulty"`
 		ClassLevel   string   `json:"classLevel"`
 		IsPremium    bool     `json:"isPremium"`
+		IsPYQ        bool     `json:"isPYQ"`
+		ExamYear     string   `json:"examYear"`
 		Tags         []string `json:"tags"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -246,6 +252,8 @@ func UpdateMockTestQuestion(c *gin.Context) {
 			"difficulty":   body.Difficulty,
 			"classLevel":   body.ClassLevel,
 			"isPremium":    body.IsPremium,
+			"isPYQ":        body.IsPYQ,
+			"examYear":     body.ExamYear,
 			"tags":         body.Tags,
 			"updatedAt":    time.Now(),
 		},

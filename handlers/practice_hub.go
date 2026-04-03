@@ -303,6 +303,8 @@ func AdminCreateQuestion(c *gin.Context) {
 		ClassLevel   string   `json:"classLevel"`
 		Tags         []string `json:"tags"`
 		IsPremium    bool     `json:"isPremium"`
+		IsPYQ        bool     `json:"isPYQ"`    // Previous Year Question
+		ExamYear     string   `json:"examYear"` // e.g., "2024", "2023"
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		utils.ErrorRes(c, http.StatusBadRequest, "MISSING_FIELDS", err.Error())
@@ -330,6 +332,8 @@ func AdminCreateQuestion(c *gin.Context) {
 		ClassLevel:   body.ClassLevel,
 		Tags:         body.Tags,
 		IsPremium:    body.IsPremium,
+		IsPYQ:        body.IsPYQ,
+		ExamYear:     body.ExamYear,
 		CreatedAt:    time.Now(),
 	}
 
@@ -360,6 +364,8 @@ func AdminUpdateQuestion(c *gin.Context) {
 		ClassLevel   string   `json:"classLevel"`
 		Tags         []string `json:"tags"`
 		IsPremium    bool     `json:"isPremium"`
+		IsPYQ        bool     `json:"isPYQ"`
+		ExamYear     string   `json:"examYear"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_BODY", err.Error())
@@ -373,6 +379,7 @@ func AdminUpdateQuestion(c *gin.Context) {
 		"text": body.Text, "options": body.Options, "correctIndex": body.CorrectIndex,
 		"explanation": body.Explanation, "difficulty": body.Difficulty,
 		"classLevel": body.ClassLevel, "tags": body.Tags, "isPremium": body.IsPremium,
+		"isPYQ": body.IsPYQ, "examYear": body.ExamYear,
 	}}
 	res, err := config.GetCollection("questions").UpdateOne(ctx, bson.M{"_id": id}, update)
 	if err != nil || res.MatchedCount == 0 {
