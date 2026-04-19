@@ -6,12 +6,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"navodaya-api/config"
 	"navodaya-api/models"
 	"navodaya-api/utils"
+
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // ListMockTests returns all tests with the current user's latest attempt attached
@@ -158,13 +159,14 @@ func SubmitMockTest(c *gin.Context) {
 	attemptAnswers := make([]models.AttemptAnswer, len(questions))
 
 	type DetailedResult struct {
-		QuestionID   primitive.ObjectID `json:"questionId"`
-		Text         string             `json:"text"`
-		Options      []string           `json:"options"`
-		SelectedIdx  int                `json:"selectedIndex"`
-		CorrectIdx   int                `json:"correctIndex"`
-		IsCorrect    bool               `json:"isCorrect"`
-		Explanation  string             `json:"explanation"`
+		QuestionID  primitive.ObjectID      `json:"questionId"`
+		Text        string                  `json:"text"`
+		ImageURL    string                  `json:"imageUrl,omitempty"`
+		Options     []models.QuestionOption `json:"options"`
+		SelectedIdx int                     `json:"selectedIndex"`
+		CorrectIdx  int                     `json:"correctIndex"`
+		IsCorrect   bool                    `json:"isCorrect"`
+		Explanation string                  `json:"explanation"`
 	}
 	detailed := make([]DetailedResult, len(questions))
 
@@ -187,6 +189,7 @@ func SubmitMockTest(c *gin.Context) {
 		detailed[i] = DetailedResult{
 			QuestionID:  q.ID,
 			Text:        q.Text,
+			ImageURL:    q.ImageURL,
 			Options:     q.Options,
 			SelectedIdx: selectedIdx,
 			CorrectIdx:  q.CorrectIndex,
@@ -252,12 +255,12 @@ func GetUserAttempts(c *gin.Context) {
 		bson.M{"$unwind": "$test"},
 		bson.M{
 			"$project": bson.M{
-				"score":       1,
-				"totalMarks":  1,
-				"timeTaken":   1,
-				"completedAt": 1,
-				"test.title":  1,
-				"test.subject": 1,
+				"score":         1,
+				"totalMarks":    1,
+				"timeTaken":     1,
+				"completedAt":   1,
+				"test.title":    1,
+				"test.subject":  1,
 				"test.duration": 1,
 				"percent": bson.M{
 					"$multiply": bson.A{

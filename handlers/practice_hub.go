@@ -295,16 +295,17 @@ func AdminCreateQuestion(c *gin.Context) {
 	}
 
 	var body struct {
-		Text         string   `json:"text" binding:"required"`
-		Options      []string `json:"options" binding:"required"`
-		CorrectIndex int      `json:"correctIndex"`
-		Explanation  string   `json:"explanation"`
-		Difficulty   string   `json:"difficulty"` // easy | medium | hard
-		ClassLevel   string   `json:"classLevel"`
-		Tags         []string `json:"tags"`
-		IsPremium    bool     `json:"isPremium"`
-		IsPYQ        bool     `json:"isPYQ"`    // Previous Year Question
-		ExamYear     string   `json:"examYear"` // e.g., "2024", "2023"
+		Text         string                  `json:"text" binding:"required"`
+		ImageURL     string                  `json:"imageUrl"`
+		Options      []models.QuestionOption `json:"options" binding:"required"`
+		CorrectIndex int                     `json:"correctIndex"`
+		Explanation  string                  `json:"explanation"`
+		Difficulty   string                  `json:"difficulty"` // easy | medium | hard
+		ClassLevel   string                  `json:"classLevel"`
+		Tags         []string                `json:"tags"`
+		IsPremium    bool                    `json:"isPremium"`
+		IsPYQ        bool                    `json:"isPYQ"`    // Previous Year Question
+		ExamYear     string                  `json:"examYear"` // e.g., "2024", "2023"
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		utils.ErrorRes(c, http.StatusBadRequest, "MISSING_FIELDS", err.Error())
@@ -313,6 +314,17 @@ func AdminCreateQuestion(c *gin.Context) {
 	if len(body.Options) < 2 {
 		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_OPTIONS", "At least 2 options required")
 		return
+	}
+	// Validate option types
+	for _, opt := range body.Options {
+		if opt.Type != "text" && opt.Type != "image" {
+			utils.ErrorRes(c, http.StatusBadRequest, "INVALID_OPTIONS", "Option type must be 'text' or 'image'")
+			return
+		}
+		if opt.Value == "" {
+			utils.ErrorRes(c, http.StatusBadRequest, "INVALID_OPTIONS", "Option value cannot be empty")
+			return
+		}
 	}
 	if body.Difficulty == "" {
 		body.Difficulty = "medium"
@@ -325,6 +337,7 @@ func AdminCreateQuestion(c *gin.Context) {
 		ID:           primitive.NewObjectID(),
 		ChapterID:    &chapterID,
 		Text:         body.Text,
+		ImageURL:     body.ImageURL,
 		Options:      body.Options,
 		CorrectIndex: body.CorrectIndex,
 		Explanation:  body.Explanation,
@@ -356,16 +369,17 @@ func AdminUpdateQuestion(c *gin.Context) {
 	}
 
 	var body struct {
-		Text         string   `json:"text"`
-		Options      []string `json:"options"`
-		CorrectIndex int      `json:"correctIndex"`
-		Explanation  string   `json:"explanation"`
-		Difficulty   string   `json:"difficulty"`
-		ClassLevel   string   `json:"classLevel"`
-		Tags         []string `json:"tags"`
-		IsPremium    bool     `json:"isPremium"`
-		IsPYQ        bool     `json:"isPYQ"`
-		ExamYear     string   `json:"examYear"`
+		Text         string                  `json:"text"`
+		ImageURL     string                  `json:"imageUrl"`
+		Options      []models.QuestionOption `json:"options"`
+		CorrectIndex int                     `json:"correctIndex"`
+		Explanation  string                  `json:"explanation"`
+		Difficulty   string                  `json:"difficulty"`
+		ClassLevel   string                  `json:"classLevel"`
+		Tags         []string                `json:"tags"`
+		IsPremium    bool                    `json:"isPremium"`
+		IsPYQ        bool                    `json:"isPYQ"`
+		ExamYear     string                  `json:"examYear"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_BODY", err.Error())
@@ -376,7 +390,8 @@ func AdminUpdateQuestion(c *gin.Context) {
 	defer cancel()
 
 	update := bson.M{"$set": bson.M{
-		"text": body.Text, "options": body.Options, "correctIndex": body.CorrectIndex,
+		"text": body.Text, "imageUrl": body.ImageURL,
+		"options": body.Options, "correctIndex": body.CorrectIndex,
 		"explanation": body.Explanation, "difficulty": body.Difficulty,
 		"classLevel": body.ClassLevel, "tags": body.Tags, "isPremium": body.IsPremium,
 		"isPYQ": body.IsPYQ, "examYear": body.ExamYear,
@@ -491,7 +506,7 @@ func ListSubjectChapters(c *gin.Context) {
 	utils.Success(c, http.StatusOK, gin.H{"chapters": result}, "Success")
 }
 
-// GetChapterQuestions — GET /practice/chapters/:id/questions
+// GetChapterQuestions — GET /practice/chapters/:id/questions?pyq=true
 // Returns all questions + the user's solved question IDs for that chapter
 func GetChapterQuestions(c *gin.Context) {
 	chapterID, err := primitive.ObjectIDFromHex(c.Param("id"))
@@ -505,8 +520,13 @@ func GetChapterQuestions(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	filter := bson.M{"chapterId": chapterID}
+	if c.Query("pyq") == "true" {
+		filter["isPYQ"] = true
+	}
+
 	cursor, err := config.GetCollection("questions").Find(ctx,
-		bson.M{"chapterId": chapterID},
+		filter,
 		options.Find().SetSort(bson.D{{Key: "difficulty", Value: 1}, {Key: "createdAt", Value: 1}}))
 	if err != nil {
 		utils.ErrorRes(c, http.StatusInternalServerError, "FETCH_FAILED", "Failed to fetch questions")

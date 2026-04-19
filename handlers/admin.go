@@ -110,7 +110,7 @@ func CreateMockTest(c *gin.Context) {
 }
 
 // AddQuestionToMockTest — POST /admin/mocktests/:id/questions
-// Body: { text, options[], correctIndex, explanation, subject, difficulty, classLevel, isPremium, tags[] }
+// Body: { text, imageUrl, options[], correctIndex, explanation, subject, difficulty, classLevel, isPremium, tags[] }
 // Creates the question and appends its ID to the test's questions array.
 func AddQuestionToMockTest(c *gin.Context) {
 	testID, err := primitive.ObjectIDFromHex(c.Param("id"))
@@ -120,17 +120,18 @@ func AddQuestionToMockTest(c *gin.Context) {
 	}
 
 	var body struct {
-		Text         string   `json:"text" binding:"required"`
-		Options      []string `json:"options" binding:"required"`
-		CorrectIndex int      `json:"correctIndex"`
-		Explanation  string   `json:"explanation"`
-		Subject      string   `json:"subject"`
-		Difficulty   string   `json:"difficulty"`
-		ClassLevel   string   `json:"classLevel"`
-		IsPremium    bool     `json:"isPremium"`
-		IsPYQ        bool     `json:"isPYQ"`
-		ExamYear     string   `json:"examYear"`
-		Tags         []string `json:"tags"`
+		Text         string                  `json:"text" binding:"required"`
+		ImageURL     string                  `json:"imageUrl"`
+		Options      []models.QuestionOption `json:"options" binding:"required"`
+		CorrectIndex int                     `json:"correctIndex"`
+		Explanation  string                  `json:"explanation"`
+		Subject      string                  `json:"subject"`
+		Difficulty   string                  `json:"difficulty"`
+		ClassLevel   string                  `json:"classLevel"`
+		IsPremium    bool                    `json:"isPremium"`
+		IsPYQ        bool                    `json:"isPYQ"`
+		ExamYear     string                  `json:"examYear"`
+		Tags         []string                `json:"tags"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		utils.ErrorRes(c, http.StatusBadRequest, "MISSING_FIELDS", "text and options are required")
@@ -158,6 +159,7 @@ func AddQuestionToMockTest(c *gin.Context) {
 	question := models.Question{
 		ID:           primitive.NewObjectID(),
 		Text:         body.Text,
+		ImageURL:     body.ImageURL,
 		Options:      body.Options,
 		CorrectIndex: body.CorrectIndex,
 		Explanation:  body.Explanation,
@@ -222,17 +224,18 @@ func UpdateMockTestQuestion(c *gin.Context) {
 	}
 
 	var body struct {
-		Text         string   `json:"text" binding:"required"`
-		Options      []string `json:"options" binding:"required"`
-		CorrectIndex int      `json:"correctIndex"`
-		Explanation  string   `json:"explanation"`
-		Subject      string   `json:"subject"`
-		Difficulty   string   `json:"difficulty"`
-		ClassLevel   string   `json:"classLevel"`
-		IsPremium    bool     `json:"isPremium"`
-		IsPYQ        bool     `json:"isPYQ"`
-		ExamYear     string   `json:"examYear"`
-		Tags         []string `json:"tags"`
+		Text         string                  `json:"text" binding:"required"`
+		ImageURL     string                  `json:"imageUrl"`
+		Options      []models.QuestionOption `json:"options" binding:"required"`
+		CorrectIndex int                     `json:"correctIndex"`
+		Explanation  string                  `json:"explanation"`
+		Subject      string                  `json:"subject"`
+		Difficulty   string                  `json:"difficulty"`
+		ClassLevel   string                  `json:"classLevel"`
+		IsPremium    bool                    `json:"isPremium"`
+		IsPYQ        bool                    `json:"isPYQ"`
+		ExamYear     string                  `json:"examYear"`
+		Tags         []string                `json:"tags"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		utils.ErrorRes(c, http.StatusBadRequest, "MISSING_FIELDS", "text and options are required")
@@ -245,6 +248,7 @@ func UpdateMockTestQuestion(c *gin.Context) {
 	update := bson.M{
 		"$set": bson.M{
 			"text":         body.Text,
+			"imageUrl":     body.ImageURL,
 			"options":      body.Options,
 			"correctIndex": body.CorrectIndex,
 			"explanation":  body.Explanation,

@@ -10,6 +10,9 @@ import (
 )
 
 func Setup(r *gin.Engine) {
+	// Serve uploaded images
+	r.Static("/uploads", "./uploads")
+
 	api := r.Group("/api")
 
 	// Health check
@@ -37,6 +40,9 @@ func Setup(r *gin.Engine) {
 	// Protected admin routes (JWT required)
 	admin.Use(middleware.RequireAdmin())
 	{
+		// Image upload
+		admin.POST("/upload/image", handlers.UploadImage)
+
 		// Admin profile
 		admin.GET("/auth/profile", handlers.GetAdminProfile)
 		admin.PUT("/auth/profile", handlers.UpdateAdminProfile)
@@ -106,6 +112,12 @@ func Setup(r *gin.Engine) {
 
 		// Settings (all admins can view, only super admin can update)
 		admin.GET("/settings", handlers.GetSettings)
+
+		// Doubts management
+		admin.GET("/doubts", handlers.AdminListDoubts)
+		admin.GET("/doubts/:id/answers", handlers.AdminGetDoubtAnswers)
+		admin.POST("/doubts/:id/answers", handlers.AdminAnswerDoubt)
+		admin.DELETE("/doubts/:id", handlers.AdminDeleteDoubt)
 
 		// Daily Challenge (Super Admin only)
 		dailyAdmin := admin.Group("/daily-challenge")
@@ -177,6 +189,21 @@ func Setup(r *gin.Engine) {
 
 		// Push token registration
 		protected.POST("/users/push-token", handlers.RegisterPushToken)
+
+		// Doubts
+		protected.GET("/doubts", handlers.ListDoubts)
+		protected.POST("/doubts", handlers.PostDoubt)
+		protected.GET("/doubts/:id/answers", handlers.GetDoubtAnswers)
+		protected.POST("/doubts/:id/answers", handlers.PostDoubtAnswer)
+		protected.DELETE("/doubts/:id", handlers.DeleteDoubt)
+
+		// Analytics
+		protected.GET("/analytics", handlers.GetStudentAnalytics)
+
+		// Bookmarks
+		protected.POST("/bookmarks", handlers.AddBookmark)
+		protected.DELETE("/bookmarks/:questionId", handlers.RemoveBookmark)
+		protected.GET("/bookmarks", handlers.ListBookmarks)
 	}
 
 	// WebSocket — auth via query params (no JWT middleware)
