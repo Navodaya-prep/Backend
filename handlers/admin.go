@@ -96,6 +96,46 @@ func ListAdminMockTestQuestions(c *gin.Context) {
 	utils.Success(c, http.StatusOK, gin.H{"questions": questions}, "Success")
 }
 
+// UpdateMockTest — PUT /admin/mocktests/:id
+func UpdateMockTest(c *gin.Context) {
+	testID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_ID", "Invalid test ID")
+		return
+	}
+
+	var body struct {
+		Title      string `json:"title" binding:"required"`
+		Subject    string `json:"subject" binding:"required"`
+		Duration   int    `json:"duration" binding:"required"`
+		ClassLevel string `json:"classLevel" binding:"required"`
+		IsPremium  bool   `json:"isPremium"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		utils.ErrorRes(c, http.StatusBadRequest, "MISSING_FIELDS", "title, subject, duration, classLevel are required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result, err := config.GetCollection("mocktests").UpdateOne(ctx, bson.M{"_id": testID}, bson.M{
+		"$set": bson.M{
+			"title":      body.Title,
+			"subject":    body.Subject,
+			"duration":   body.Duration,
+			"classLevel": body.ClassLevel,
+			"isPremium":  body.IsPremium,
+		},
+	})
+	if err != nil || result.MatchedCount == 0 {
+		utils.ErrorRes(c, http.StatusNotFound, "NOT_FOUND", "Mock test not found")
+		return
+	}
+
+	utils.Success(c, http.StatusOK, gin.H{"id": testID.Hex()}, "Mock test updated")
+}
+
 // CreateMockTest — POST /admin/mocktests
 // Body: { title, subject, duration, classLevel, isPremium }
 func CreateMockTest(c *gin.Context) {
