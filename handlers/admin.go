@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"time"
 
@@ -51,7 +52,7 @@ func ListAdminMockTestQuestions(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	var test models.MockTest
@@ -62,11 +63,34 @@ func ListAdminMockTestQuestions(c *gin.Context) {
 
 	questions := []models.Question{}
 	if len(test.QuestionIDs) > 0 {
-		qCursor, err := config.GetCollection("questions").Find(ctx, bson.M{"_id": bson.M{"$in": test.QuestionIDs}})
-		if err == nil {
-			qCursor.All(ctx, &questions)
-			qCursor.Close(ctx)
+		qCtx, qCancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer qCancel()
+
+		qCursor, err := config.GetCollection("questions").Find(qCtx, bson.M{"_id": bson.M{"$in": test.QuestionIDs}})
+		if err != nil {
+			log.Printf("ListAdminMockTestQuestions: Find error: %v", err)
+			utils.ErrorRes(c, http.StatusInternalServerError, "FETCH_FAILED", "Failed to fetch questions: "+err.Error())
+			return
 		}
+		defer qCursor.Close(qCtx)
+		if err := qCursor.All(qCtx, &questions); err != nil {
+			log.Printf("ListAdminMockTestQuestions: All error: %v", err)
+			utils.ErrorRes(c, http.StatusInternalServerError, "DECODE_FAILED", "Failed to decode questions: "+err.Error())
+			return
+		}
+
+		// MongoDB $in does not preserve insertion order — reorder to match test.QuestionIDs
+		qMap := make(map[primitive.ObjectID]models.Question, len(questions))
+		for _, q := range questions {
+			qMap[q.ID] = q
+		}
+		ordered := make([]models.Question, 0, len(test.QuestionIDs))
+		for _, id := range test.QuestionIDs {
+			if q, ok := qMap[id]; ok {
+				ordered = append(ordered, q)
+			}
+		}
+		questions = ordered
 	}
 
 	utils.Success(c, http.StatusOK, gin.H{"questions": questions}, "Success")

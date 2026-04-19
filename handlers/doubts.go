@@ -100,6 +100,41 @@ func PostDoubt(c *gin.Context) {
 	utils.Success(c, http.StatusCreated, gin.H{"doubt": doubt}, "Doubt posted")
 }
 
+// UpdateDoubt — PUT /doubts/:id (owner only, cannot change if already answered)
+func UpdateDoubt(c *gin.Context) {
+	doubtID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_ID", "Invalid doubt ID")
+		return
+	}
+
+	userIDStr, _ := c.Get("userId")
+	userID, _ := primitive.ObjectIDFromHex(userIDStr.(string))
+
+	var body struct {
+		Subject string `json:"subject" binding:"required"`
+		Text    string `json:"text" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		utils.ErrorRes(c, http.StatusBadRequest, "MISSING_FIELDS", "subject and text are required")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	res, err := config.GetCollection("doubts").UpdateOne(ctx,
+		bson.M{"_id": doubtID, "userId": userID},
+		bson.M{"$set": bson.M{"subject": body.Subject, "text": body.Text}},
+	)
+	if err != nil || res.MatchedCount == 0 {
+		utils.ErrorRes(c, http.StatusNotFound, "NOT_FOUND", "Doubt not found or not yours")
+		return
+	}
+
+	utils.Success(c, http.StatusOK, nil, "Doubt updated")
+}
+
 // GetDoubtAnswers — GET /doubts/:id/answers
 func GetDoubtAnswers(c *gin.Context) {
 	doubtID, err := primitive.ObjectIDFromHex(c.Param("id"))

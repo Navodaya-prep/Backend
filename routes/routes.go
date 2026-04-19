@@ -193,9 +193,10 @@ func Setup(r *gin.Engine) {
 		// Doubts
 		protected.GET("/doubts", handlers.ListDoubts)
 		protected.POST("/doubts", handlers.PostDoubt)
+		protected.PUT("/doubts/:id", handlers.UpdateDoubt)
+		protected.DELETE("/doubts/:id", handlers.DeleteDoubt)
 		protected.GET("/doubts/:id/answers", handlers.GetDoubtAnswers)
 		protected.POST("/doubts/:id/answers", handlers.PostDoubtAnswer)
-		protected.DELETE("/doubts/:id", handlers.DeleteDoubt)
 
 		// Analytics
 		protected.GET("/analytics", handlers.GetStudentAnalytics)
