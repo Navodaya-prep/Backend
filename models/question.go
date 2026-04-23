@@ -49,6 +49,7 @@ type Question struct {
 	ChapterID    *primitive.ObjectID `bson:"chapterId,omitempty" json:"chapterId,omitempty"`
 	Subject      string              `bson:"subject" json:"subject"`
 	Text         string              `bson:"text" json:"text"`
+	TextHi       string              `bson:"textHi,omitempty" json:"textHi,omitempty"`
 	ImageURL     string              `bson:"imageUrl,omitempty" json:"imageUrl,omitempty"` // optional image for question
 	Options      []QuestionOption    `bson:"options" json:"options"`
 	CorrectIndex int                 `bson:"correctIndex" json:"correctIndex"`

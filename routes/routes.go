@@ -79,6 +79,7 @@ func Setup(r *gin.Engine) {
 		admin.GET("/live/classes", handlers.ListAdminLiveClasses)
 		admin.POST("/live/classes", handlers.CreateLiveClass)
 		admin.DELETE("/live/classes/:id", handlers.EndLiveClass)
+		admin.GET("/live/classes/:id/agora-token", handlers.GetAgoraToken)
 		admin.POST("/live/classes/:id/questions", handlers.PushLiveQuestion)
 		admin.DELETE("/live/classes/:id/questions/:qid", handlers.EndLiveQuestion)
 		admin.GET("/live/classes/:id/questions/:qid/leaderboard", handlers.GetQuestionLeaderboard)
@@ -195,6 +196,7 @@ func Setup(r *gin.Engine) {
 		// Live Classes (student)
 		protected.GET("/live/classes", handlers.ListActiveLiveClasses)
 		protected.GET("/live/classes/:id", handlers.GetLiveClass)
+		protected.GET("/live/classes/:id/agora-token", handlers.GetAgoraToken)
 
 		// Push token registration
 		protected.POST("/users/push-token", handlers.RegisterPushToken)

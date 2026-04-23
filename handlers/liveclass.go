@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,17 +19,16 @@ import (
 // ─── Admin Handlers ──────────────────────────────────────────────────────────
 
 // CreateLiveClass — POST /admin/live/classes
-// Body: { title, subject, teacherName, description, youtubeVideoId, classLevel, duration, isPremium }
+// Body: { title, subject, teacherName, description, classLevel, duration, isPremium }
 func CreateLiveClass(c *gin.Context) {
 	var body struct {
-		Title          string `json:"title" binding:"required"`
-		Subject        string `json:"subject" binding:"required"`
-		TeacherName    string `json:"teacherName" binding:"required"`
-		Description    string `json:"description"`
-		YouTubeVideoID string `json:"youtubeVideoId" binding:"required"`
-		ClassLevel     string `json:"classLevel" binding:"required"`
-		Duration       int    `json:"duration" binding:"required"`
-		IsPremium      bool   `json:"isPremium"`
+		Title       string `json:"title" binding:"required"`
+		Subject     string `json:"subject" binding:"required"`
+		TeacherName string `json:"teacherName" binding:"required"`
+		Description string `json:"description"`
+		ClassLevel  string `json:"classLevel" binding:"required"`
+		Duration    int    `json:"duration" binding:"required"`
+		IsPremium   bool   `json:"isPremium"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		utils.ErrorRes(c, http.StatusBadRequest, "MISSING_FIELDS", err.Error())
@@ -36,18 +36,17 @@ func CreateLiveClass(c *gin.Context) {
 	}
 
 	class := models.LiveClass{
-		ID:             primitive.NewObjectID(),
-		Title:          body.Title,
-		Subject:        body.Subject,
-		TeacherName:    body.TeacherName,
-		Description:    body.Description,
-		YouTubeVideoID: body.YouTubeVideoID,
-		ClassLevel:     body.ClassLevel,
-		Duration:       body.Duration,
-		IsPremium:      body.IsPremium,
-		IsLive:         true,
-		StartedAt:      time.Now(),
-		CreatedAt:      time.Now(),
+		ID:          primitive.NewObjectID(),
+		Title:       body.Title,
+		Subject:     body.Subject,
+		TeacherName: body.TeacherName,
+		Description: body.Description,
+		ClassLevel:  body.ClassLevel,
+		Duration:    body.Duration,
+		IsPremium:   body.IsPremium,
+		IsLive:      true,
+		StartedAt:   time.Now(),
+		CreatedAt:   time.Now(),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -274,6 +273,35 @@ func GetLiveClass(c *gin.Context) {
 	}
 
 	utils.Success(c, http.StatusOK, gin.H{"class": class}, "Success")
+}
+
+// GetAgoraToken — GET /live/classes/:id/agora-token  (student, audience role)
+//               — GET /admin/live/classes/:id/agora-token  (teacher, publisher role)
+func GetAgoraToken(c *gin.Context) {
+	classIDStr := c.Param("id")
+	if _, err := primitive.ObjectIDFromHex(classIDStr); err != nil {
+		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_ID", "Invalid class ID")
+		return
+	}
+
+	// Determine role from context: admin middleware sets "isAdmin" key
+	role := utils.AgoraRoleSubscriber
+	if _, isAdmin := c.Get("isAdmin"); isAdmin {
+		role = utils.AgoraRolePublisher
+	}
+
+	token := utils.BuildAgoraToken(classIDStr, "", role, 7200)
+
+	utils.Success(c, http.StatusOK, gin.H{
+		"token":       token,
+		"appId":       getAgoraAppID(),
+		"channelName": classIDStr,
+		"uid":         0,
+	}, "Token generated")
+}
+
+func getAgoraAppID() string {
+	return os.Getenv("AGORA_APP_ID")
 }
 
 // RegisterPushToken — POST /users/push-token

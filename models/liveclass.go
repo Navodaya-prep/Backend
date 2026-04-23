@@ -8,12 +8,11 @@ import (
 
 type LiveClass struct {
 	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Title          string             `bson:"title" json:"title"`
-	Subject        string             `bson:"subject" json:"subject"`
-	TeacherName    string             `bson:"teacherName" json:"teacherName"`
-	Description    string             `bson:"description" json:"description"`
-	YouTubeVideoID string             `bson:"youtubeVideoId" json:"youtubeVideoId"`
-	ClassLevel     string             `bson:"classLevel" json:"classLevel"`
+	Title       string `bson:"title" json:"title"`
+	Subject     string `bson:"subject" json:"subject"`
+	TeacherName string `bson:"teacherName" json:"teacherName"`
+	Description string `bson:"description" json:"description"`
+	ClassLevel  string `bson:"classLevel" json:"classLevel"`
 	Duration       int                `bson:"duration" json:"duration"` // minutes
 	IsLive         bool               `bson:"isLive" json:"isLive"`
 	IsPremium      bool               `bson:"isPremium" json:"isPremium"`

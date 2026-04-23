@@ -296,6 +296,7 @@ func AdminCreateQuestion(c *gin.Context) {
 
 	var body struct {
 		Text         string                  `json:"text" binding:"required"`
+		TextHi       string                  `json:"textHi"`
 		ImageURL     string                  `json:"imageUrl"`
 		Options      []models.QuestionOption `json:"options" binding:"required"`
 		CorrectIndex int                     `json:"correctIndex"`
@@ -337,6 +338,7 @@ func AdminCreateQuestion(c *gin.Context) {
 		ID:           primitive.NewObjectID(),
 		ChapterID:    &chapterID,
 		Text:         body.Text,
+		TextHi:       body.TextHi,
 		ImageURL:     body.ImageURL,
 		Options:      body.Options,
 		CorrectIndex: body.CorrectIndex,
@@ -370,6 +372,7 @@ func AdminUpdateQuestion(c *gin.Context) {
 
 	var body struct {
 		Text         string                  `json:"text"`
+		TextHi       string                  `json:"textHi"`
 		ImageURL     string                  `json:"imageUrl"`
 		Options      []models.QuestionOption `json:"options"`
 		CorrectIndex int                     `json:"correctIndex"`
@@ -390,7 +393,7 @@ func AdminUpdateQuestion(c *gin.Context) {
 	defer cancel()
 
 	update := bson.M{"$set": bson.M{
-		"text": body.Text, "imageUrl": body.ImageURL,
+		"text": body.Text, "textHi": body.TextHi, "imageUrl": body.ImageURL,
 		"options": body.Options, "correctIndex": body.CorrectIndex,
 		"explanation": body.Explanation, "difficulty": body.Difficulty,
 		"classLevel": body.ClassLevel, "tags": body.Tags, "isPremium": body.IsPremium,
