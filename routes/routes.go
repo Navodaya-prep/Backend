@@ -55,11 +55,19 @@ func Setup(r *gin.Engine) {
 			adminManage.GET("/admins", handlers.ListAdmins)
 			adminManage.POST("/admins/invite", handlers.InviteAdmin)
 			adminManage.DELETE("/admins/:id", handlers.DeleteAdmin)
+
+			// Teacher management
+			adminManage.GET("/teachers", handlers.ListTeachers)
+			adminManage.POST("/teachers/invite", handlers.InviteTeacher)
+			adminManage.PUT("/teachers/:id", handlers.UpdateTeacher)
+			adminManage.PUT("/teachers/:id/toggle", handlers.ToggleTeacherStatus)
+			adminManage.DELETE("/teachers/:id", handlers.DeleteTeacher)
 		}
 
 		// Mock Tests
 		admin.GET("/mocktests", handlers.ListAdminMockTests)
 		admin.POST("/mocktests", handlers.CreateMockTest)
+		admin.PUT("/mocktests/:id", handlers.UpdateMockTest)
 		admin.DELETE("/mocktests/:id", handlers.DeleteMockTest)
 		admin.GET("/mocktests/:id/questions", handlers.ListAdminMockTestQuestions)
 		admin.POST("/mocktests/:id/questions", handlers.AddQuestionToMockTest)
@@ -71,6 +79,7 @@ func Setup(r *gin.Engine) {
 		admin.GET("/live/classes", handlers.ListAdminLiveClasses)
 		admin.POST("/live/classes", handlers.CreateLiveClass)
 		admin.DELETE("/live/classes/:id", handlers.EndLiveClass)
+		admin.GET("/live/classes/:id/agora-token", handlers.GetAgoraToken)
 		admin.POST("/live/classes/:id/questions", handlers.PushLiveQuestion)
 		admin.DELETE("/live/classes/:id/questions/:qid", handlers.EndLiveQuestion)
 		admin.GET("/live/classes/:id/questions/:qid/leaderboard", handlers.GetQuestionLeaderboard)
@@ -163,6 +172,7 @@ func Setup(r *gin.Engine) {
 		// Mock Tests
 		protected.GET("/mocktests", handlers.ListMockTests)
 		protected.GET("/mocktests/attempts", handlers.GetUserAttempts)
+		protected.GET("/mocktests/attempts/:attemptId", handlers.GetAttemptDetails)
 		protected.GET("/mocktests/:id", handlers.GetMockTest)
 		protected.POST("/mocktests/:id/submit", handlers.SubmitMockTest)
 
@@ -186,6 +196,7 @@ func Setup(r *gin.Engine) {
 		// Live Classes (student)
 		protected.GET("/live/classes", handlers.ListActiveLiveClasses)
 		protected.GET("/live/classes/:id", handlers.GetLiveClass)
+		protected.GET("/live/classes/:id/agora-token", handlers.GetAgoraToken)
 
 		// Push token registration
 		protected.POST("/users/push-token", handlers.RegisterPushToken)

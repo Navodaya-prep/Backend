@@ -233,6 +233,113 @@ func SubmitMockTest(c *gin.Context) {
 	}, "Test submitted successfully")
 }
 
+// GetAttemptDetails returns a single attempt with full question details for review
+func GetAttemptDetails(c *gin.Context) {
+	userIDStr, _ := c.Get("userId")
+	userID, _ := primitive.ObjectIDFromHex(userIDStr.(string))
+
+	attemptID, err := primitive.ObjectIDFromHex(c.Param("attemptId"))
+	if err != nil {
+		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_ID", "Invalid attempt ID")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var attempt models.MockTestAttempt
+	if err := config.GetCollection("mocktestsattempts").FindOne(ctx, bson.M{
+		"_id":    attemptID,
+		"userId": userID,
+	}).Decode(&attempt); err != nil {
+		utils.ErrorRes(c, http.StatusNotFound, "NOT_FOUND", "Attempt not found")
+		return
+	}
+
+	questionIDs := make([]primitive.ObjectID, len(attempt.Answers))
+	for i, a := range attempt.Answers {
+		questionIDs[i] = a.QuestionID
+	}
+
+	qCtx, qCancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer qCancel()
+
+	qCursor, err := config.GetCollection("questions").Find(qCtx, bson.M{"_id": bson.M{"$in": questionIDs}})
+	if err != nil {
+		utils.ErrorRes(c, http.StatusInternalServerError, "FETCH_FAILED", "Failed to fetch questions")
+		return
+	}
+	defer qCursor.Close(qCtx)
+
+	var questions []models.Question
+	if err := qCursor.All(qCtx, &questions); err != nil {
+		utils.ErrorRes(c, http.StatusInternalServerError, "DECODE_FAILED", "Failed to decode questions: "+err.Error())
+		return
+	}
+
+	qMap := make(map[primitive.ObjectID]models.Question, len(questions))
+	for _, q := range questions {
+		qMap[q.ID] = q
+	}
+
+	type DetailedResult struct {
+		QuestionID  primitive.ObjectID      `json:"questionId"`
+		Text        string                  `json:"text"`
+		ImageURL    string                  `json:"imageUrl,omitempty"`
+		Options     []models.QuestionOption `json:"options"`
+		SelectedIdx int                     `json:"selectedIndex"`
+		CorrectIdx  int                     `json:"correctIndex"`
+		IsCorrect   bool                    `json:"isCorrect"`
+		Explanation string                  `json:"explanation"`
+	}
+
+	detailed := make([]DetailedResult, 0, len(attempt.Answers))
+	correct, wrong, skipped := 0, 0, 0
+	for _, a := range attempt.Answers {
+		q, ok := qMap[a.QuestionID]
+		if !ok {
+			continue
+		}
+		if a.IsCorrect {
+			correct++
+		} else if a.SelectedIndex == -1 {
+			skipped++
+		} else {
+			wrong++
+		}
+		detailed = append(detailed, DetailedResult{
+			QuestionID:  q.ID,
+			Text:        q.Text,
+			ImageURL:    q.ImageURL,
+			Options:     q.Options,
+			SelectedIdx: a.SelectedIndex,
+			CorrectIdx:  q.CorrectIndex,
+			IsCorrect:   a.IsCorrect,
+			Explanation: q.Explanation,
+		})
+	}
+
+	percent := 0
+	if attempt.TotalMarks > 0 {
+		percent = correct * 100 / attempt.TotalMarks
+	}
+
+	utils.Success(c, http.StatusOK, gin.H{
+		"result": gin.H{
+			"attemptId":   attempt.ID,
+			"score":       attempt.Score,
+			"totalMarks":  attempt.TotalMarks,
+			"correct":     correct,
+			"wrong":       wrong,
+			"skipped":     skipped,
+			"percent":     percent,
+			"timeTaken":   attempt.TimeTaken,
+			"completedAt": attempt.CompletedAt,
+			"detailed":    detailed,
+		},
+	}, "Success")
+}
+
 // GetUserAttempts returns all past attempts for the current user
 func GetUserAttempts(c *gin.Context) {
 	userIDStr, _ := c.Get("userId")
