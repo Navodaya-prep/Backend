@@ -18,11 +18,12 @@ func CalculateStreak(lastActiveDate *time.Time, currentStreak int) int {
 	}
 
 	now := time.Now()
-	lastActive := *lastActiveDate
+	// Normalise lastActive to local timezone so DB-returned UTC times compare correctly
+	// against local calendar days (streak is per calendar day from the user's perspective).
+	lastActive := lastActiveDate.In(now.Location())
 
-	// Normalize times to start of day for comparison
-	nowDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	lastDay := time.Date(lastActive.Year(), lastActive.Month(), lastActive.Day(), 0, 0, 0, 0, lastActive.Location())
+	nowDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+	lastDay := time.Date(lastActive.Year(), lastActive.Month(), lastActive.Day(), 0, 0, 0, 0, time.Local)
 
 	daysDiff := int(nowDay.Sub(lastDay).Hours() / 24)
 

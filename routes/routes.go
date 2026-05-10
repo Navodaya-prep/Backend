@@ -20,6 +20,9 @@ func Setup(r *gin.Engine) {
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Navodaya Prime Go API is running 🚀"})
 	})
 
+	// Contact form (public)
+	api.POST("/contact", handlers.SubmitContactMessage)
+
 	// Auth routes (public)
 	auth := api.Group("/auth")
 	{

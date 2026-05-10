@@ -116,12 +116,10 @@ func Signup(c *gin.Context) {
 	phone, _ := c.Get("phone")
 
 	var body struct {
-		Name       string `json:"name" binding:"required"`
-		ClassLevel string `json:"classLevel" binding:"required"`
-		State      string `json:"state" binding:"required"`
+		Name string `json:"name" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		utils.ErrorRes(c, http.StatusBadRequest, "MISSING_FIELDS", "Name, class level, and state are required")
+		utils.ErrorRes(c, http.StatusBadRequest, "MISSING_FIELDS", "Name is required")
 		return
 	}
 
@@ -142,8 +140,8 @@ func Signup(c *gin.Context) {
 		ID:             primitive.NewObjectID(),
 		Name:           body.Name,
 		Phone:          phone.(string),
-		ClassLevel:     body.ClassLevel,
-		State:          body.State,
+		ClassLevel:     "",
+		State:          "",
 		StarPoints:     0,
 		Streak:         1, // First day streak
 		IsPremium:      false,

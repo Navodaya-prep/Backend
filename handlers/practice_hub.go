@@ -447,15 +447,34 @@ func ListSubjects(c *gin.Context) {
 		subjects = []models.Subject{}
 	}
 
-	// Attach chapter count per subject
+	// Attach chapter count and total question count per subject
 	type SubjectWithCount struct {
 		models.Subject
-		ChapterCount int `json:"chapterCount"`
+		ChapterCount  int `json:"chapterCount"`
+		QuestionCount int `json:"questionCount"`
 	}
 	result := make([]SubjectWithCount, len(subjects))
 	for i, s := range subjects {
-		count, _ := config.GetCollection("chapters").CountDocuments(ctx, bson.M{"subjectId": s.ID})
-		result[i] = SubjectWithCount{Subject: s, ChapterCount: int(count)}
+		chapterCount, _ := config.GetCollection("chapters").CountDocuments(ctx, bson.M{"subjectId": s.ID})
+
+		// Collect chapter IDs then count questions across them
+		chapterCursor, _ := config.GetCollection("chapters").Find(ctx,
+			bson.M{"subjectId": s.ID}, options.Find().SetProjection(bson.M{"_id": 1}))
+		var chapterDocs []struct{ ID primitive.ObjectID `bson:"_id"` }
+		chapterCursor.All(ctx, &chapterDocs)
+		chapterCursor.Close(ctx)
+
+		chapterIDs := make([]primitive.ObjectID, len(chapterDocs))
+		for j, ch := range chapterDocs {
+			chapterIDs[j] = ch.ID
+		}
+		questionCount := 0
+		if len(chapterIDs) > 0 {
+			qCount, _ := config.GetCollection("questions").CountDocuments(ctx, bson.M{"chapterId": bson.M{"$in": chapterIDs}})
+			questionCount = int(qCount)
+		}
+
+		result[i] = SubjectWithCount{Subject: s, ChapterCount: int(chapterCount), QuestionCount: questionCount}
 	}
 	utils.Success(c, http.StatusOK, gin.H{"subjects": result}, "Success")
 }
