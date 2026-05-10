@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
-	"navodaya-api/config"
-	"navodaya-api/routes"
-	"navodaya-api/ws"
+	"github.com/navodayaprime/api/config"
+	"github.com/navodayaprime/api/routes"
+	"github.com/navodayaprime/api/ws"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"

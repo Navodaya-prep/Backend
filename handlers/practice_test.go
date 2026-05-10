@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"navodaya-api/config"
-	"navodaya-api/models"
+	"github.com/navodayaprime/api/config"
+	"github.com/navodayaprime/api/models"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )

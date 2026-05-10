@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"navodaya-api/utils"
+	"github.com/navodayaprime/api/utils"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"

@@ -6,9 +6,9 @@ import (
 	"regexp"
 	"time"
 
-	"navodaya-api/config"
-	"navodaya-api/models"
-	"navodaya-api/utils"
+	"github.com/navodayaprime/api/config"
+	"github.com/navodayaprime/api/models"
+	"github.com/navodayaprime/api/utils"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"

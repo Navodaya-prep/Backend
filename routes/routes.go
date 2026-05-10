@@ -3,8 +3,8 @@ package routes
 import (
 	"net/http"
 
-	"navodaya-api/handlers"
-	"navodaya-api/middleware"
+	"github.com/navodayaprime/api/handlers"
+	"github.com/navodayaprime/api/middleware"
 
 	"github.com/gin-gonic/gin"
 )

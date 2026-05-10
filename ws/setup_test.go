@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"navodaya-api/config"
+	"github.com/navodayaprime/api/config"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"

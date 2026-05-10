@@ -10,8 +10,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"navodaya-api/config"
-	"navodaya-api/models"
+	"github.com/navodayaprime/api/config"
+	"github.com/navodayaprime/api/models"
 )
 
 // Hub manages all active WebSocket connections grouped by live class ID.

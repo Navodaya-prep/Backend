@@ -7,8 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
-	"navodaya-api/config"
-	"navodaya-api/utils"
+	"github.com/navodayaprime/api/config"
+	"github.com/navodayaprime/api/utils"
 )
 
 func GetLeaderboard(c *gin.Context) {

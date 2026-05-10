@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"navodaya-api/utils"
+	"github.com/navodayaprime/api/utils"
 
 	"github.com/gin-gonic/gin"
 )

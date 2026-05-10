@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"navodaya-api/config"
+	"github.com/navodayaprime/api/config"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
