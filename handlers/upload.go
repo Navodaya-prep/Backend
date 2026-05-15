@@ -1,28 +1,28 @@
 package handlers
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-	"fmt"
+	"context"
 	"net/http"
 	"os"
-	"path/filepath"
 
-	"github.com/navodayaprime/api/utils"
-
+	"github.com/cloudinary/cloudinary-go/v2"
+	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/gin-gonic/gin"
+	"github.com/navodayaprime/api/utils"
 )
 
 const maxUploadSize = 5 << 20 // 5 MB
-var allowedMimeTypes = map[string]string{
-	"image/jpeg": ".jpg",
-	"image/png":  ".png",
-	"image/gif":  ".gif",
-	"image/webp": ".webp",
+
+var allowedMimeTypes = map[string]bool{
+	"image/jpeg": true,
+	"image/png":  true,
+	"image/gif":  true,
+	"image/webp": true,
 }
 
 // UploadImage handles image upload for questions.
 // POST /admin/upload/image — multipart form with field "image"
+// Returns the full Cloudinary HTTPS URL.
 func UploadImage(c *gin.Context) {
 	file, header, err := c.Request.FormFile("image")
 	if err != nil {
@@ -36,13 +36,12 @@ func UploadImage(c *gin.Context) {
 		return
 	}
 
-	// Detect content type from file header
+	// Detect content type from first 512 bytes
 	buf := make([]byte, 512)
 	n, _ := file.Read(buf)
 	contentType := http.DetectContentType(buf[:n])
 
-	ext, ok := allowedMimeTypes[contentType]
-	if !ok {
+	if !allowedMimeTypes[contentType] {
 		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_TYPE", "Only JPEG, PNG, GIF, and WebP images are allowed")
 		return
 	}
@@ -53,37 +52,23 @@ func UploadImage(c *gin.Context) {
 		return
 	}
 
-	// Generate unique filename
-	randBytes := make([]byte, 16)
-	if _, err := rand.Read(randBytes); err != nil {
-		utils.ErrorRes(c, http.StatusInternalServerError, "UPLOAD_ERROR", "Failed to generate filename")
-		return
-	}
-	filename := hex.EncodeToString(randBytes) + ext
-
-	// Ensure uploads directory exists
-	uploadDir := getUploadDir()
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		utils.ErrorRes(c, http.StatusInternalServerError, "UPLOAD_ERROR", "Failed to create upload directory")
+	cld, err := cloudinary.NewFromParams(
+		os.Getenv("CLOUDINARY_CLOUD_NAME"),
+		os.Getenv("CLOUDINARY_API_KEY"),
+		os.Getenv("CLOUDINARY_API_SECRET"),
+	)
+	if err != nil {
+		utils.ErrorRes(c, http.StatusInternalServerError, "UPLOAD_ERROR", "Failed to initialise storage")
 		return
 	}
 
-	destPath := filepath.Join(uploadDir, filename)
-	if err := c.SaveUploadedFile(header, destPath); err != nil {
-		utils.ErrorRes(c, http.StatusInternalServerError, "UPLOAD_ERROR", "Failed to save image")
+	result, err := cld.Upload.Upload(context.Background(), file, uploader.UploadParams{
+		Folder: "navodaya",
+	})
+	if err != nil {
+		utils.ErrorRes(c, http.StatusInternalServerError, "UPLOAD_ERROR", "Failed to upload image")
 		return
 	}
 
-	// Build public URL
-	imageURL := fmt.Sprintf("/uploads/%s", filename)
-
-	utils.Success(c, http.StatusOK, gin.H{"url": imageURL}, "Image uploaded")
-}
-
-func getUploadDir() string {
-	dir := os.Getenv("UPLOAD_DIR")
-	if dir == "" {
-		dir = "./uploads"
-	}
-	return dir
+	utils.Success(c, http.StatusOK, gin.H{"url": result.SecureURL}, "Image uploaded")
 }
