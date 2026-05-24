@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/navodayaprime/api/config"
-	"github.com/navodayaprime/api/models"
+	"github.com/navodayasarthi/api/config"
+	"github.com/navodayasarthi/api/models"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"

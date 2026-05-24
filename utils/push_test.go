@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"github.com/navodayaprime/api/config"
+	"github.com/navodayasarthi/api/config"
 )
 
 // ─── UpsertPushToken ──────────────────────────────────────────────────────────

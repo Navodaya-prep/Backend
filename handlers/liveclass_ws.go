@@ -3,10 +3,10 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/navodayaprime/api/config"
-	"github.com/navodayaprime/api/models"
-	"github.com/navodayaprime/api/utils"
-	"github.com/navodayaprime/api/ws"
+	"github.com/navodayasarthi/api/config"
+	"github.com/navodayasarthi/api/models"
+	"github.com/navodayasarthi/api/utils"
+	"github.com/navodayasarthi/api/ws"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"

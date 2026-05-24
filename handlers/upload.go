@@ -8,7 +8,7 @@ import (
 	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/gin-gonic/gin"
-	"github.com/navodayaprime/api/utils"
+	"github.com/navodayasarthi/api/utils"
 )
 
 const maxUploadSize = 5 << 20 // 5 MB

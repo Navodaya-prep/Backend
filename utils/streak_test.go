@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/navodayaprime/api/models"
+	"github.com/navodayasarthi/api/models"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )

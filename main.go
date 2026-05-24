@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/navodayaprime/api/config"
-	"github.com/navodayaprime/api/routes"
-	"github.com/navodayaprime/api/ws"
+	"github.com/navodayasarthi/api/config"
+	"github.com/navodayasarthi/api/routes"
+	"github.com/navodayasarthi/api/ws"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -46,7 +46,7 @@ func main() {
 		port = "8080"
 	}
 
-	fmt.Printf("\n🚀 Navodaya Prime Go API running on http://localhost:%s\n", port)
+	fmt.Printf("\n🚀 NavodayaSarthi Go API running on http://localhost:%s\n", port)
 	fmt.Printf("📋 Health check: http://localhost:%s/api/health\n\n", port)
 
 	if err := r.Run(":" + port); err != nil {

@@ -1,4 +1,4 @@
-module github.com/navodayaprime/api
+module github.com/navodayasarthi/api
 
 go 1.25.0
 

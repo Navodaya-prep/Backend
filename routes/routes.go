@@ -3,8 +3,8 @@ package routes
 import (
 	"net/http"
 
-	"github.com/navodayaprime/api/handlers"
-	"github.com/navodayaprime/api/middleware"
+	"github.com/navodayasarthi/api/handlers"
+	"github.com/navodayasarthi/api/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,7 +17,7 @@ func Setup(r *gin.Engine) {
 
 	// Health check
 	api.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Navodaya Prime Go API is running 🚀"})
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "NavodayaSarthi Go API is running 🚀"})
 	})
 
 	// Contact form (public)

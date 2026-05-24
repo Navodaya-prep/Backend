@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/navodayaprime/api/config"
-	"github.com/navodayaprime/api/utils"
+	"github.com/navodayasarthi/api/config"
+	"github.com/navodayasarthi/api/utils"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"

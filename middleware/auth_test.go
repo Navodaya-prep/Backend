@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/navodayaprime/api/utils"
+	"github.com/navodayasarthi/api/utils"
 
 	"github.com/gin-gonic/gin"
 )

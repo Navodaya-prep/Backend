@@ -9,9 +9,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"github.com/navodayaprime/api/config"
-	"github.com/navodayaprime/api/models"
-	"github.com/navodayaprime/api/utils"
+	"github.com/navodayasarthi/api/config"
+	"github.com/navodayasarthi/api/models"
+	"github.com/navodayasarthi/api/utils"
 )
 
 // ─── Admin: Course CRUD ───────────────────────────────────────────────────────

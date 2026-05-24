@@ -11,8 +11,8 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"github.com/navodayaprime/api/config"
-	"github.com/navodayaprime/api/models"
+	"github.com/navodayasarthi/api/config"
+	"github.com/navodayasarthi/api/models"
 )
 
 const expoPushURL = "https://exp.host/--/api/v2/push/send"
