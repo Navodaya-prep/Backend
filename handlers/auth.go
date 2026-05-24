@@ -18,6 +18,10 @@ import (
 
 var phoneRegex = regexp.MustCompile(`^[6-9]\d{9}$`)
 
+// Demo account for Google Play Store review — fixed OTP, never expires
+const demoPhone = "8175947318"
+const demoOTP = "621845"
+
 func SendOTP(c *gin.Context) {
 	var body struct {
 		Phone string `json:"phone" binding:"required"`
@@ -28,6 +32,12 @@ func SendOTP(c *gin.Context) {
 	}
 	if !phoneRegex.MatchString(body.Phone) {
 		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_PHONE", "Enter a valid 10-digit Indian mobile number")
+		return
+	}
+
+	// Demo account: skip SMS, always succeeds
+	if body.Phone == demoPhone {
+		utils.Success(c, http.StatusOK, nil, "OTP sent successfully")
 		return
 	}
 
@@ -50,12 +60,18 @@ func VerifyOTP(c *gin.Context) {
 		return
 	}
 
-	valid, err := utils.VerifyOTP(body.Phone, body.OTP)
-	if err != nil {
-		utils.ErrorRes(c, http.StatusInternalServerError, "VERIFY_FAILED", "Verification failed")
-		return
-	}
-	if !valid {
+	// Demo account: accept fixed OTP without DB lookup
+	if body.Phone != demoPhone {
+		valid, err := utils.VerifyOTP(body.Phone, body.OTP)
+		if err != nil {
+			utils.ErrorRes(c, http.StatusInternalServerError, "VERIFY_FAILED", "Verification failed")
+			return
+		}
+		if !valid {
+			utils.ErrorRes(c, http.StatusBadRequest, "INVALID_OTP", "OTP is incorrect or has expired")
+			return
+		}
+	} else if body.OTP != demoOTP {
 		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_OTP", "OTP is incorrect or has expired")
 		return
 	}
@@ -65,7 +81,7 @@ func VerifyOTP(c *gin.Context) {
 	defer cancel()
 
 	var user models.User
-	err = col.FindOne(ctx, bson.M{"phone": body.Phone}).Decode(&user)
+	err := col.FindOne(ctx, bson.M{"phone": body.Phone}).Decode(&user)
 
 	if err == mongo.ErrNoDocuments {
 		// New user — return temp token
