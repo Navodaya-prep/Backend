@@ -3,6 +3,8 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +15,31 @@ import (
 	"github.com/navodayasarthi/api/models"
 	"github.com/navodayasarthi/api/utils"
 )
+
+// extractYouTubeID normalises any YouTube URL or bare video ID to just the 11-char video ID.
+// Handles: watch?v=ID, youtu.be/ID, /embed/ID, /shorts/ID, and plain IDs.
+func extractYouTubeID(input string) string {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return ""
+	}
+	// No URL markers → treat as bare ID already
+	if !strings.Contains(input, "/") && !strings.Contains(input, "?") {
+		return input
+	}
+	patterns := []string{
+		`[?&]v=([^&?/\s]+)`,       // youtube.com/watch?v=ID
+		`youtu\.be/([^?&/\s]+)`,   // youtu.be/ID
+		`/embed/([^?&/\s]+)`,      // youtube.com/embed/ID
+		`/shorts/([^?&/\s]+)`,     // youtube.com/shorts/ID
+	}
+	for _, p := range patterns {
+		if m := regexp.MustCompile(p).FindStringSubmatch(input); m != nil {
+			return m[1]
+		}
+	}
+	return input
+}
 
 // ─── Admin: Course CRUD ───────────────────────────────────────────────────────
 
@@ -283,7 +310,7 @@ func AdminCreateLesson(c *gin.Context) {
 		CourseID:       courseID,
 		Title:          body.Title,
 		Type:           body.Type,
-		YouTubeVideoID: body.YouTubeVideoID,
+		YouTubeVideoID: extractYouTubeID(body.YouTubeVideoID),
 		NoteContent:    body.NoteContent,
 		Description:    body.Description,
 		DurationMins:   body.DurationMins,
@@ -338,7 +365,7 @@ func AdminUpdateLesson(c *gin.Context) {
 	defer cancel()
 
 	res, err := config.GetCollection("lessons").UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{
-		"title": body.Title, "type": body.Type, "youtubeVideoId": body.YouTubeVideoID,
+		"title": body.Title, "type": body.Type, "youtubeVideoId": extractYouTubeID(body.YouTubeVideoID),
 		"noteContent": body.NoteContent, "description": body.Description,
 		"durationMins": body.DurationMins, "order": body.Order, "isPremium": body.IsPremium,
 	}})
