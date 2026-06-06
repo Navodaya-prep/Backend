@@ -29,7 +29,7 @@ func sendOTPViaSMS(phone, otp string) error {
 	}
 
 	url := fmt.Sprintf(
-		"https://2factor.in/API/V1/%s/SMS/%s/%s/AUTOGEN",
+		"https://2factor.in/API/V1/%s/SMS/%s/%s/AUTOGEN2/Registration_OTP",
 		apiKey, phone, otp,
 	)
 
