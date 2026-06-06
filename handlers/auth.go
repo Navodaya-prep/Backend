@@ -172,6 +172,8 @@ func Signup(c *gin.Context) {
 		return
 	}
 
+	go utils.NotifyNewUser(user.Name, user.Phone)
+
 	token, err := utils.SignToken(user.ID.Hex(), user.Phone)
 	if err != nil {
 		utils.ErrorRes(c, http.StatusInternalServerError, "TOKEN_ERROR", "Failed to generate token")
