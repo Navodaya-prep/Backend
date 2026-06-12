@@ -65,6 +65,13 @@ func UpdateUserActivity(ctx context.Context, userID primitive.ObjectID) error {
 	}
 
 	_, err = col.UpdateOne(ctx, bson.M{"_id": userID}, update)
+
+	// Celebrate streak milestones (7, 30, 100 days) — fires only on the day the
+	// streak increments to a milestone value.
+	if err == nil && newStreak > user.Streak {
+		CheckStreakMilestone(userID, user.Name, newStreak)
+	}
+
 	return err
 }
 

@@ -204,6 +204,9 @@ func SubmitMockTest(c *gin.Context) {
 		percent = (correct * 100) / total
 	}
 
+	// Weekly leaderboard rank before this attempt (for the rank-up notification)
+	rankBefore := getWeeklyRank(ctx, userID)
+
 	// Save attempt — always insert new so retest works
 	attempt := models.MockTestAttempt{
 		ID:          primitive.NewObjectID(),
@@ -217,6 +220,13 @@ func SubmitMockTest(c *gin.Context) {
 	}
 	config.GetCollection("mocktestsattempts").InsertOne(ctx, attempt)
 	config.GetCollection("mocktests").UpdateOne(ctx, bson.M{"_id": testID}, bson.M{"$inc": bson.M{"attemptCount": 1}})
+
+	// Notify if this attempt moved the student up the weekly leaderboard
+	if rankAfter := getWeeklyRank(ctx, userID); rankAfter > 0 && (rankBefore <= 0 || rankAfter < rankBefore) {
+		utils.NotifyUser(userID, "rank_up",
+			map[string]string{"rank": strconv.Itoa(rankAfter), "testName": test.Title},
+			map[string]string{"screen": "Leaderboard"})
+	}
 
 	utils.Success(c, http.StatusOK, gin.H{
 		"result": gin.H{

@@ -335,6 +335,11 @@ func AdminCreateLesson(c *gin.Context) {
 		)
 	}
 
+	// Announce the new lesson to all students
+	utils.NotifyAll("lesson_added",
+		map[string]string{"lessonTitle": lesson.Title},
+		map[string]string{"screen": "RecordedClasses", "courseId": lesson.CourseID.Hex()})
+
 	utils.Success(c, http.StatusCreated, gin.H{"lesson": lesson}, "Lesson created")
 }
 

@@ -320,8 +320,8 @@ func AdminAnswerDoubt(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	count, _ := config.GetCollection("doubts").CountDocuments(ctx, bson.M{"_id": doubtID})
-	if count == 0 {
+	var doubt models.Doubt
+	if err := config.GetCollection("doubts").FindOne(ctx, bson.M{"_id": doubtID}).Decode(&doubt); err != nil {
 		utils.ErrorRes(c, http.StatusNotFound, "NOT_FOUND", "Doubt not found")
 		return
 	}
@@ -349,6 +349,11 @@ func AdminAnswerDoubt(c *gin.Context) {
 	config.GetCollection("doubts").UpdateOne(ctx,
 		bson.M{"_id": doubtID},
 		bson.M{"$set": bson.M{"status": "answered"}})
+
+	// Notify the student who asked the doubt
+	utils.NotifyUser(doubt.UserID, "doubt_answered",
+		map[string]string{"subject": doubt.Subject},
+		map[string]string{"screen": "Doubts", "doubtId": doubtID.Hex()})
 
 	utils.Success(c, http.StatusCreated, gin.H{"answer": answer}, "Answer posted")
 }

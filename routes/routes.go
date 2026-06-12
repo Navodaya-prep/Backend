@@ -125,6 +125,17 @@ func Setup(r *gin.Engine) {
 		// Settings (all admins can view, only super admin can update)
 		admin.GET("/settings", handlers.GetSettings)
 
+		// Notifications — templates & history (all admins); broadcast (super admin only)
+		admin.GET("/notifications/templates", handlers.ListNotificationTemplates)
+		admin.PUT("/notifications/templates/:key", handlers.UpdateNotificationTemplate)
+		admin.GET("/notifications/logs", handlers.ListNotificationLogs)
+
+		notifSuper := admin.Group("/notifications")
+		notifSuper.Use(middleware.RequireSuperAdmin())
+		{
+			notifSuper.POST("/broadcast", handlers.BroadcastNotification)
+		}
+
 		// Doubts management
 		admin.GET("/doubts", handlers.AdminListDoubts)
 		admin.GET("/doubts/:id/answers", handlers.AdminGetDoubtAnswers)

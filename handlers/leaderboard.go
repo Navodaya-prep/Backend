@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"github.com/navodayasarthi/api/config"
 	"github.com/navodayasarthi/api/utils"
 )
@@ -78,4 +79,51 @@ func GetLeaderboard(c *gin.Context) {
 		"leaderboard": leaderboard,
 		"userRank":    userRank,
 	}, "Success")
+}
+
+// getWeeklyRank returns the user's current rank on the weekly leaderboard
+// (1 = first). Returns 0 if the user has no attempts in the last 7 days.
+func getWeeklyRank(ctx context.Context, userID primitive.ObjectID) int {
+	col := config.GetCollection("mocktestsattempts")
+	weekAgo := time.Now().Add(-7 * 24 * time.Hour)
+
+	// The user's weekly total score.
+	userPipeline := bson.A{
+		bson.M{"$match": bson.M{"userId": userID, "completedAt": bson.M{"$gte": weekAgo}}},
+		bson.M{"$group": bson.M{"_id": "$userId", "totalScore": bson.M{"$sum": "$score"}}},
+	}
+	cursor, err := col.Aggregate(ctx, userPipeline)
+	if err != nil {
+		return 0
+	}
+	var mine []struct {
+		TotalScore int `bson:"totalScore"`
+	}
+	cursor.All(ctx, &mine)
+	cursor.Close(ctx)
+	if len(mine) == 0 {
+		return 0
+	}
+
+	// Number of users with a strictly higher weekly total.
+	betterPipeline := bson.A{
+		bson.M{"$match": bson.M{"completedAt": bson.M{"$gte": weekAgo}}},
+		bson.M{"$group": bson.M{"_id": "$userId", "totalScore": bson.M{"$sum": "$score"}}},
+		bson.M{"$match": bson.M{"totalScore": bson.M{"$gt": mine[0].TotalScore}}},
+		bson.M{"$count": "better"},
+	}
+	cursor, err = col.Aggregate(ctx, betterPipeline)
+	if err != nil {
+		return 0
+	}
+	var better []struct {
+		Better int `bson:"better"`
+	}
+	cursor.All(ctx, &better)
+	cursor.Close(ctx)
+
+	if len(better) == 0 {
+		return 1
+	}
+	return better[0].Better + 1
 }

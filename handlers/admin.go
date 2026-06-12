@@ -170,6 +170,11 @@ func CreateMockTest(c *gin.Context) {
 		return
 	}
 
+	// Announce the new test to all students
+	utils.NotifyAll("mock_test_published",
+		map[string]string{"testName": test.Title, "subject": test.Subject, "classLevel": test.ClassLevel},
+		map[string]string{"screen": "MockTests", "testId": test.ID.Hex()})
+
 	utils.Success(c, http.StatusCreated, gin.H{"test": test}, "Mock test created")
 }
 

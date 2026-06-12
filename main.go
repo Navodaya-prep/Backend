@@ -7,6 +7,7 @@ import (
 
 	"github.com/navodayasarthi/api/config"
 	"github.com/navodayasarthi/api/routes"
+	"github.com/navodayasarthi/api/utils"
 	"github.com/navodayasarthi/api/ws"
 
 	"github.com/gin-contrib/cors"
@@ -25,6 +26,9 @@ func main() {
 
 	// Start WebSocket hub
 	go ws.GlobalHub.Run()
+
+	// Start scheduled push notifications (daily challenge, streak reminders)
+	go utils.StartNotificationScheduler()
 
 	// Setup Gin
 	r := gin.Default()
