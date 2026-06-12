@@ -29,7 +29,7 @@ func sendOTPViaSMS(phone, otp string) error {
 	}
 
 	url := fmt.Sprintf(
-		"https://2factor.in/API/V1/%s/SMS/%s/%s/AUTOGEN2/Registration_OTP",
+		"https://2factor.in/API/V1/%s/SMS/%s/%s/AUTOGEN",
 		apiKey, phone, otp,
 	)
 
@@ -41,12 +41,15 @@ func sendOTPViaSMS(phone, otp string) error {
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
+		fmt.Printf("[OTP] HTTP error: %v\n", err)
 		return err
 	}
 	defer resp.Body.Close()
 
+	body, _ := io.ReadAll(resp.Body)
+	fmt.Printf("[OTP] 2Factor response: status=%d body=%s\n", resp.StatusCode, string(body))
+
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("SMS send failed with status: %d body: %s", resp.StatusCode, string(body))
 	}
 	return nil
