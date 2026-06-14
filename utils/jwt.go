@@ -67,13 +67,12 @@ func ParseToken(tokenStr string) (*Claims, error) {
 
 // Admin JWT functions
 func SignAdminToken(adminID, email string, isSuperAdmin bool) (string, error) {
-	hours := 168 // 7 days
 	claims := AdminClaims{
 		AdminID:      adminID,
 		Email:        email,
 		IsSuperAdmin: isSuperAdmin,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(hours) * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}

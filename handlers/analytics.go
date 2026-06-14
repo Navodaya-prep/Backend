@@ -108,19 +108,37 @@ func GetStudentAnalytics(c *gin.Context) {
 	}
 
 	// ── 3. Summary stats ──────────────────────────────────────────────────────
-	totalAttempts, _ := config.GetCollection("mocktestsattempts").CountDocuments(ctx, bson.M{"userId": userID})
-
 	sumPipeline := bson.A{
-		bson.M{"$match": bson.M{"userId": userID}},
+		bson.M{"$match": bson.M{
+			"userId":     userID,
+			"mockTestId": bson.M{"$exists": true, "$ne": nil},
+		}},
+		bson.M{"$lookup": bson.M{
+			"from":         "mocktests",
+			"localField":   "mockTestId",
+			"foreignField": "_id",
+			"as":           "test",
+		}},
+		bson.M{"$match": bson.M{"test": bson.M{"$ne": bson.A{}}}},
+		bson.M{"$addFields": bson.M{
+			"scorePercent": bson.M{"$cond": bson.M{
+				"if":   bson.M{"$gt": bson.A{"$totalMarks", 0}},
+				"then": bson.M{"$multiply": bson.A{bson.M{"$divide": bson.A{"$score", "$totalMarks"}}, 100}},
+				"else": 0,
+			}},
+		}},
 		bson.M{
 			"$group": bson.M{
-				"_id":        nil,
-				"totalScore": bson.M{"$sum": "$score"},
-				"totalMarks": bson.M{"$sum": "$totalMarks"},
-				"bestScore":  bson.M{"$max": "$score"},
-				"bestTotal":  bson.M{"$first": "$totalMarks"},
+				"_id":         nil,
+				"uniqueTests": bson.M{"$addToSet": "$mockTestId"},
+				"totalScore":  bson.M{"$sum": "$score"},
+				"totalMarks":  bson.M{"$sum": "$totalMarks"},
+				"bestPercent": bson.M{"$max": "$scorePercent"},
 			},
 		},
+		bson.M{"$addFields": bson.M{
+			"totalAttempts": bson.M{"$size": "$uniqueTests"},
+		}},
 	}
 	sumCursor, err := config.GetCollection("mocktestsattempts").Aggregate(ctx, sumPipeline)
 	var sumResult []bson.M
@@ -131,6 +149,7 @@ func GetStudentAnalytics(c *gin.Context) {
 
 	overallAccuracy := 0.0
 	bestPercent := 0.0
+	totalAttempts := int64(0)
 	if len(sumResult) > 0 {
 		s := sumResult[0]
 		if total, ok := s["totalMarks"].(int32); ok && total > 0 {
@@ -138,10 +157,11 @@ func GetStudentAnalytics(c *gin.Context) {
 				overallAccuracy = float64(score) / float64(total) * 100
 			}
 		}
-		if best, ok := s["bestScore"].(int32); ok {
-			if total, ok2 := s["bestTotal"].(int32); ok2 && total > 0 {
-				bestPercent = float64(best) / float64(total) * 100
-			}
+		if bp, ok := s["bestPercent"].(float64); ok {
+			bestPercent = bp
+		}
+		if ta, ok := s["totalAttempts"].(int32); ok {
+			totalAttempts = int64(ta)
 		}
 	}
 

@@ -40,15 +40,32 @@ func GetProfile(c *gin.Context) {
 		user.Streak = currentStreak
 	}
 
-	// Aggregate stats
+	// Aggregate stats — count distinct tests (not attempts), exclude orphaned/deleted test records
 	pipeline := bson.A{
-		bson.M{"$match": bson.M{"userId": userID}},
+		bson.M{"$match": bson.M{
+			"userId":     userID,
+			"mockTestId": bson.M{"$exists": true, "$ne": nil},
+		}},
+		bson.M{"$lookup": bson.M{
+			"from":         "mocktests",
+			"localField":   "mockTestId",
+			"foreignField": "_id",
+			"as":           "test",
+		}},
+		bson.M{"$match": bson.M{"test": bson.M{"$ne": bson.A{}}}},
 		bson.M{
 			"$group": bson.M{
-				"_id":        nil,
-				"totalTests": bson.M{"$sum": 1},
-				"totalScore": bson.M{"$sum": "$score"},
-				"bestScore":  bson.M{"$max": "$score"},
+				"_id":         nil,
+				"uniqueTests": bson.M{"$addToSet": "$mockTestId"},
+				"totalScore":  bson.M{"$sum": "$score"},
+				"bestScore":   bson.M{"$max": "$score"},
+			},
+		},
+		bson.M{
+			"$project": bson.M{
+				"totalTests": bson.M{"$size": "$uniqueTests"},
+				"totalScore": 1,
+				"bestScore":  1,
 			},
 		},
 	}
