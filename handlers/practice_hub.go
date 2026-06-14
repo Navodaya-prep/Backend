@@ -17,6 +17,45 @@ import (
 
 // ─── Admin: Subject CRUD ──────────────────────────────────────────────────────
 
+// chapterQCount holds question tallies for a single chapter.
+type chapterQCount struct {
+	Total   int
+	Premium int
+}
+
+// countQuestionsByChapter returns chapterID → {total, premium} question counts.
+// Pass nil chapterIDs to count across all chapters.
+func countQuestionsByChapter(ctx context.Context, chapterIDs []primitive.ObjectID) map[primitive.ObjectID]chapterQCount {
+	match := bson.M{}
+	if chapterIDs != nil {
+		match = bson.M{"chapterId": bson.M{"$in": chapterIDs}}
+	}
+	pipeline := []bson.M{
+		{"$match": match},
+		{"$group": bson.M{
+			"_id":     "$chapterId",
+			"total":   bson.M{"$sum": 1},
+			"premium": bson.M{"$sum": bson.M{"$cond": bson.A{"$isPremium", 1, 0}}},
+		}},
+	}
+	res := map[primitive.ObjectID]chapterQCount{}
+	cursor, err := config.GetCollection("questions").Aggregate(ctx, pipeline)
+	if err != nil {
+		return res
+	}
+	defer cursor.Close(ctx)
+	var rows []struct {
+		ID      primitive.ObjectID `bson:"_id"`
+		Total   int                `bson:"total"`
+		Premium int                `bson:"premium"`
+	}
+	cursor.All(ctx, &rows)
+	for _, r := range rows {
+		res[r.ID] = chapterQCount{Total: r.Total, Premium: r.Premium}
+	}
+	return res
+}
+
 // AdminListSubjects — GET /admin/practice/subjects
 func AdminListSubjects(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -35,13 +74,58 @@ func AdminListSubjects(c *gin.Context) {
 	if subjects == nil {
 		subjects = []models.Subject{}
 	}
-	utils.Success(c, http.StatusOK, gin.H{"subjects": subjects}, "Success")
+
+	// Map each chapter to its subject, then roll up question counts per subject.
+	chCursor, _ := config.GetCollection("chapters").Find(ctx,
+		bson.M{"subjectId": bson.M{"$ne": nil}})
+	var chapters []models.Chapter
+	if chCursor != nil {
+		chCursor.All(ctx, &chapters)
+		chCursor.Close(ctx)
+	}
+	chapterToSubject := make(map[primitive.ObjectID]primitive.ObjectID, len(chapters))
+	for _, ch := range chapters {
+		if ch.SubjectID != nil {
+			chapterToSubject[ch.ID] = *ch.SubjectID
+		}
+	}
+
+	counts := countQuestionsByChapter(ctx, nil)
+	subjTotals := make(map[primitive.ObjectID]chapterQCount)
+	for chID, cc := range counts {
+		if sid, ok := chapterToSubject[chID]; ok {
+			t := subjTotals[sid]
+			t.Total += cc.Total
+			t.Premium += cc.Premium
+			subjTotals[sid] = t
+		}
+	}
+
+	type subjectWithCounts struct {
+		models.Subject
+		QuestionCount int `json:"questionCount"`
+		PremiumCount  int `json:"premiumCount"`
+		FreeCount     int `json:"freeCount"`
+	}
+	result := make([]subjectWithCounts, len(subjects))
+	for i, s := range subjects {
+		cc := subjTotals[s.ID]
+		result[i] = subjectWithCounts{
+			Subject:       s,
+			QuestionCount: cc.Total,
+			PremiumCount:  cc.Premium,
+			FreeCount:     cc.Total - cc.Premium,
+		}
+	}
+
+	utils.Success(c, http.StatusOK, gin.H{"subjects": result}, "Success")
 }
 
 // AdminCreateSubject — POST /admin/practice/subjects
 func AdminCreateSubject(c *gin.Context) {
 	var body struct {
 		Name        string `json:"name" binding:"required"`
+		NameHi      string `json:"nameHi"`
 		Icon        string `json:"icon"`
 		Color       string `json:"color"`
 		Description string `json:"description"`
@@ -55,6 +139,7 @@ func AdminCreateSubject(c *gin.Context) {
 	subject := models.Subject{
 		ID:          primitive.NewObjectID(),
 		Name:        body.Name,
+		NameHi:      body.NameHi,
 		Icon:        body.Icon,
 		Color:       body.Color,
 		Description: body.Description,
@@ -82,6 +167,7 @@ func AdminUpdateSubject(c *gin.Context) {
 
 	var body struct {
 		Name        string `json:"name"`
+		NameHi      string `json:"nameHi"`
 		Icon        string `json:"icon"`
 		Color       string `json:"color"`
 		Description string `json:"description"`
@@ -96,7 +182,7 @@ func AdminUpdateSubject(c *gin.Context) {
 	defer cancel()
 
 	update := bson.M{"$set": bson.M{
-		"name": body.Name, "icon": body.Icon, "color": body.Color,
+		"name": body.Name, "nameHi": body.NameHi, "icon": body.Icon, "color": body.Color,
 		"description": body.Description, "order": body.Order,
 	}}
 	res, err := config.GetCollection("subjects").UpdateOne(ctx, bson.M{"_id": id}, update)
@@ -153,7 +239,31 @@ func AdminListChapters(c *gin.Context) {
 	if chapters == nil {
 		chapters = []models.Chapter{}
 	}
-	utils.Success(c, http.StatusOK, gin.H{"chapters": chapters}, "Success")
+
+	ids := make([]primitive.ObjectID, len(chapters))
+	for i, ch := range chapters {
+		ids[i] = ch.ID
+	}
+	counts := countQuestionsByChapter(ctx, ids)
+
+	type chapterWithCounts struct {
+		models.Chapter
+		QuestionCount int `json:"questionCount"`
+		PremiumCount  int `json:"premiumCount"`
+		FreeCount     int `json:"freeCount"`
+	}
+	result := make([]chapterWithCounts, len(chapters))
+	for i, ch := range chapters {
+		cc := counts[ch.ID]
+		result[i] = chapterWithCounts{
+			Chapter:       ch,
+			QuestionCount: cc.Total,
+			PremiumCount:  cc.Premium,
+			FreeCount:     cc.Total - cc.Premium,
+		}
+	}
+
+	utils.Success(c, http.StatusOK, gin.H{"chapters": result}, "Success")
 }
 
 // AdminCreateChapter — POST /admin/practice/subjects/:id/chapters
@@ -166,6 +276,7 @@ func AdminCreateChapter(c *gin.Context) {
 
 	var body struct {
 		Title       string `json:"title" binding:"required"`
+		TitleHi     string `json:"titleHi"`
 		Description string `json:"description"`
 		Order       int    `json:"order"`
 		IsPremium   bool   `json:"isPremium"`
@@ -179,6 +290,7 @@ func AdminCreateChapter(c *gin.Context) {
 		ID:          primitive.NewObjectID(),
 		SubjectID:   &subjectID,
 		Title:       body.Title,
+		TitleHi:     body.TitleHi,
 		Description: body.Description,
 		Order:       body.Order,
 		IsPremium:   body.IsPremium,
@@ -205,6 +317,7 @@ func AdminUpdateChapter(c *gin.Context) {
 
 	var body struct {
 		Title       string `json:"title"`
+		TitleHi     string `json:"titleHi"`
 		Description string `json:"description"`
 		Order       int    `json:"order"`
 		IsPremium   bool   `json:"isPremium"`
@@ -218,7 +331,7 @@ func AdminUpdateChapter(c *gin.Context) {
 	defer cancel()
 
 	update := bson.M{"$set": bson.M{
-		"title": body.Title, "description": body.Description,
+		"title": body.Title, "titleHi": body.TitleHi, "description": body.Description,
 		"order": body.Order, "isPremium": body.IsPremium,
 	}}
 	res, err := config.GetCollection("chapters").UpdateOne(ctx, bson.M{"_id": id}, update)
@@ -371,18 +484,18 @@ func AdminUpdateQuestion(c *gin.Context) {
 	}
 
 	var body struct {
-		Text         string                  `json:"text"`
-		TextHi       string                  `json:"textHi"`
-		ImageURL     string                  `json:"imageUrl"`
+		Text         *string                 `json:"text"`
+		TextHi       *string                 `json:"textHi"`
+		ImageURL     *string                 `json:"imageUrl"`
 		Options      []models.QuestionOption `json:"options"`
-		CorrectIndex int                     `json:"correctIndex"`
-		Explanation  string                  `json:"explanation"`
-		Difficulty   string                  `json:"difficulty"`
-		ClassLevel   string                  `json:"classLevel"`
+		CorrectIndex *int                    `json:"correctIndex"`
+		Explanation  *string                 `json:"explanation"`
+		Difficulty   *string                 `json:"difficulty"`
+		ClassLevel   *string                 `json:"classLevel"`
 		Tags         []string                `json:"tags"`
-		IsPremium    bool                    `json:"isPremium"`
-		IsPYQ        bool                    `json:"isPYQ"`
-		ExamYear     string                  `json:"examYear"`
+		IsPremium    *bool                   `json:"isPremium"`
+		IsPYQ        *bool                   `json:"isPYQ"`
+		ExamYear     *string                 `json:"examYear"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		utils.ErrorRes(c, http.StatusBadRequest, "INVALID_BODY", err.Error())
@@ -392,13 +505,27 @@ func AdminUpdateQuestion(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	update := bson.M{"$set": bson.M{
-		"text": body.Text, "textHi": body.TextHi, "imageUrl": body.ImageURL,
-		"options": body.Options, "correctIndex": body.CorrectIndex,
-		"explanation": body.Explanation, "difficulty": body.Difficulty,
-		"classLevel": body.ClassLevel, "tags": body.Tags, "isPremium": body.IsPremium,
-		"isPYQ": body.IsPYQ, "examYear": body.ExamYear,
-	}}
+	// Only set fields that were actually present in the request payload.
+	set := bson.M{}
+	if body.Text != nil         { set["text"] = *body.Text }
+	if body.TextHi != nil       { set["textHi"] = *body.TextHi }
+	if body.ImageURL != nil     { set["imageUrl"] = *body.ImageURL }
+	if body.Options != nil      { set["options"] = body.Options }
+	if body.CorrectIndex != nil { set["correctIndex"] = *body.CorrectIndex }
+	if body.Explanation != nil  { set["explanation"] = *body.Explanation }
+	if body.Difficulty != nil   { set["difficulty"] = *body.Difficulty }
+	if body.ClassLevel != nil   { set["classLevel"] = *body.ClassLevel }
+	if body.Tags != nil         { set["tags"] = body.Tags }
+	if body.IsPremium != nil    { set["isPremium"] = *body.IsPremium }
+	if body.IsPYQ != nil        { set["isPYQ"] = *body.IsPYQ }
+	if body.ExamYear != nil     { set["examYear"] = *body.ExamYear }
+
+	if len(set) == 0 {
+		utils.ErrorRes(c, http.StatusBadRequest, "EMPTY_UPDATE", "No fields to update")
+		return
+	}
+
+	update := bson.M{"$set": set}
 	res, err := config.GetCollection("questions").UpdateOne(ctx, bson.M{"_id": id}, update)
 	if err != nil || res.MatchedCount == 0 {
 		utils.ErrorRes(c, http.StatusNotFound, "NOT_FOUND", "Question not found")
@@ -562,6 +689,9 @@ func GetChapterQuestions(c *gin.Context) {
 		questions = []models.Question{}
 	}
 
+	// Hide answer data for premium questions from non-premium users.
+	redactPremiumQuestions(questions, userIsPremium(userID))
+
 	// Fetch user's solved IDs for this chapter
 	var progress models.UserChapterProgress
 	solvedIDs := []string{}
@@ -620,10 +750,23 @@ func SubmitChapterPractice(c *gin.Context) {
 	var questions []models.Question
 	cursor.All(ctx, &questions)
 
+	// Non-premium users cannot submit premium questions — drop them so they
+	// are neither scored nor marked solved (gate can't be bypassed via POST).
+	if !userIsPremium(userID) {
+		filtered := questions[:0]
+		for _, q := range questions {
+			if !q.IsPremium {
+				filtered = append(filtered, q)
+			}
+		}
+		questions = filtered
+	}
+
 	// Score and build detailed result
 	type DetailItem struct {
 		QuestionID  string `json:"questionId"`
 		Text        string `json:"text"`
+		TextHi      string `json:"textHi,omitempty"`
 		SelectedIdx int    `json:"selectedIndex"`
 		CorrectIdx  int    `json:"correctIndex"`
 		IsCorrect   bool   `json:"isCorrect"`
@@ -648,6 +791,7 @@ func SubmitChapterPractice(c *gin.Context) {
 		detailed = append(detailed, DetailItem{
 			QuestionID:  q.ID.Hex(),
 			Text:        q.Text,
+			TextHi:      q.TextHi,
 			SelectedIdx: selected,
 			CorrectIdx:  q.CorrectIndex,
 			IsCorrect:   isCorrect,

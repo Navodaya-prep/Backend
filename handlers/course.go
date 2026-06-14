@@ -70,6 +70,16 @@ func GetCourse(c *gin.Context) {
 		return
 	}
 
+	// Premium courses are accessible only to premium users.
+	if course.IsPremium {
+		userIDStr, _ := c.Get("userId")
+		userID, _ := primitive.ObjectIDFromHex(userIDStr.(string))
+		if !userIsPremium(userID) {
+			utils.ErrorRes(c, http.StatusForbidden, "PREMIUM_REQUIRED", "This course is available to premium students only")
+			return
+		}
+	}
+
 	utils.Success(c, http.StatusOK, gin.H{"course": course}, "Success")
 }
 
@@ -80,9 +90,20 @@ func GetCourseChapters(c *gin.Context) {
 		return
 	}
 
-	col := config.GetCollection("chapters")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	// Premium courses are accessible only to premium users.
+	if courseIsPremium(courseID) {
+		userIDStr, _ := c.Get("userId")
+		userID, _ := primitive.ObjectIDFromHex(userIDStr.(string))
+		if !userIsPremium(userID) {
+			utils.ErrorRes(c, http.StatusForbidden, "PREMIUM_REQUIRED", "This course is available to premium students only")
+			return
+		}
+	}
+
+	col := config.GetCollection("chapters")
 
 	opts := options.Find().SetSort(bson.M{"order": 1})
 	cursor, err := col.Find(ctx, bson.M{"courseId": courseID}, opts)

@@ -9,6 +9,7 @@ import (
 type LiveClass struct {
 	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Title       string `bson:"title" json:"title"`
+	TitleHi     string `bson:"titleHi,omitempty" json:"titleHi,omitempty"`
 	Subject     string `bson:"subject" json:"subject"`
 	TeacherName string `bson:"teacherName" json:"teacherName"`
 	Description string `bson:"description" json:"description"`

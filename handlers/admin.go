@@ -106,6 +106,7 @@ func UpdateMockTest(c *gin.Context) {
 
 	var body struct {
 		Title      string `json:"title" binding:"required"`
+		TitleHi    string `json:"titleHi"`
 		Subject    string `json:"subject" binding:"required"`
 		Duration   int    `json:"duration" binding:"required"`
 		ClassLevel string `json:"classLevel" binding:"required"`
@@ -122,6 +123,7 @@ func UpdateMockTest(c *gin.Context) {
 	result, err := config.GetCollection("mocktests").UpdateOne(ctx, bson.M{"_id": testID}, bson.M{
 		"$set": bson.M{
 			"title":      body.Title,
+			"titleHi":    body.TitleHi,
 			"subject":    body.Subject,
 			"duration":   body.Duration,
 			"classLevel": body.ClassLevel,
@@ -141,6 +143,7 @@ func UpdateMockTest(c *gin.Context) {
 func CreateMockTest(c *gin.Context) {
 	var body struct {
 		Title      string `json:"title" binding:"required"`
+		TitleHi    string `json:"titleHi"`
 		Subject    string `json:"subject" binding:"required"`
 		Duration   int    `json:"duration" binding:"required"` // minutes
 		ClassLevel string `json:"classLevel" binding:"required"`
@@ -154,6 +157,7 @@ func CreateMockTest(c *gin.Context) {
 	test := models.MockTest{
 		ID:          primitive.NewObjectID(),
 		Title:       body.Title,
+		TitleHi:     body.TitleHi,
 		Subject:     body.Subject,
 		Duration:    body.Duration,
 		ClassLevel:  body.ClassLevel,
@@ -190,6 +194,7 @@ func AddQuestionToMockTest(c *gin.Context) {
 
 	var body struct {
 		Text         string                  `json:"text" binding:"required"`
+		TextHi       string                  `json:"textHi"`
 		ImageURL     string                  `json:"imageUrl"`
 		Options      []models.QuestionOption `json:"options" binding:"required"`
 		CorrectIndex int                     `json:"correctIndex"`
@@ -228,6 +233,7 @@ func AddQuestionToMockTest(c *gin.Context) {
 	question := models.Question{
 		ID:           primitive.NewObjectID(),
 		Text:         body.Text,
+		TextHi:       body.TextHi,
 		ImageURL:     body.ImageURL,
 		Options:      body.Options,
 		CorrectIndex: body.CorrectIndex,
@@ -294,6 +300,7 @@ func UpdateMockTestQuestion(c *gin.Context) {
 
 	var body struct {
 		Text         string                  `json:"text" binding:"required"`
+		TextHi       string                  `json:"textHi"`
 		ImageURL     string                  `json:"imageUrl"`
 		Options      []models.QuestionOption `json:"options" binding:"required"`
 		CorrectIndex int                     `json:"correctIndex"`
@@ -317,6 +324,7 @@ func UpdateMockTestQuestion(c *gin.Context) {
 	update := bson.M{
 		"$set": bson.M{
 			"text":         body.Text,
+			"textHi":       body.TextHi,
 			"imageUrl":     body.ImageURL,
 			"options":      body.Options,
 			"correctIndex": body.CorrectIndex,

@@ -68,6 +68,7 @@ func AdminListCourses(c *gin.Context) {
 func AdminCreateCourse(c *gin.Context) {
 	var body struct {
 		Title       string `json:"title" binding:"required"`
+		TitleHi     string `json:"titleHi"`
 		Subject     string `json:"subject" binding:"required"`
 		ClassLevel  string `json:"classLevel"`
 		Thumbnail   string `json:"thumbnail"`
@@ -83,6 +84,7 @@ func AdminCreateCourse(c *gin.Context) {
 	course := models.Course{
 		ID:          primitive.NewObjectID(),
 		Title:       body.Title,
+		TitleHi:     body.TitleHi,
 		Subject:     body.Subject,
 		ClassLevel:  body.ClassLevel,
 		Thumbnail:   body.Thumbnail,
@@ -112,6 +114,7 @@ func AdminUpdateCourse(c *gin.Context) {
 
 	var body struct {
 		Title       string `json:"title"`
+		TitleHi     string `json:"titleHi"`
 		Subject     string `json:"subject"`
 		ClassLevel  string `json:"classLevel"`
 		Thumbnail   string `json:"thumbnail"`
@@ -128,7 +131,7 @@ func AdminUpdateCourse(c *gin.Context) {
 	defer cancel()
 
 	res, err := config.GetCollection("courses").UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{
-		"title": body.Title, "subject": body.Subject, "classLevel": body.ClassLevel,
+		"title": body.Title, "titleHi": body.TitleHi, "subject": body.Subject, "classLevel": body.ClassLevel,
 		"thumbnail": body.Thumbnail, "description": body.Description,
 		"order": body.Order, "isPremium": body.IsPremium,
 	}})
@@ -198,6 +201,7 @@ func AdminCreateCourseChapter(c *gin.Context) {
 
 	var body struct {
 		Title       string `json:"title" binding:"required"`
+		TitleHi     string `json:"titleHi"`
 		Description string `json:"description"`
 		Order       int    `json:"order"`
 		IsPremium   bool   `json:"isPremium"`
@@ -211,6 +215,7 @@ func AdminCreateCourseChapter(c *gin.Context) {
 		ID:          primitive.NewObjectID(),
 		CourseID:    &courseID,
 		Title:       body.Title,
+		TitleHi:     body.TitleHi,
 		Description: body.Description,
 		Order:       body.Order,
 		IsPremium:   body.IsPremium,
@@ -280,6 +285,7 @@ func AdminCreateLesson(c *gin.Context) {
 
 	var body struct {
 		Title          string `json:"title" binding:"required"`
+		TitleHi        string `json:"titleHi"`
 		Type           string `json:"type" binding:"required"` // "video" | "note"
 		YouTubeVideoID string `json:"youtubeVideoId"`
 		NoteContent    string `json:"noteContent"`
@@ -309,6 +315,7 @@ func AdminCreateLesson(c *gin.Context) {
 		ChapterID:      chapterID,
 		CourseID:       courseID,
 		Title:          body.Title,
+		TitleHi:        body.TitleHi,
 		Type:           body.Type,
 		YouTubeVideoID: extractYouTubeID(body.YouTubeVideoID),
 		NoteContent:    body.NoteContent,
@@ -353,6 +360,7 @@ func AdminUpdateLesson(c *gin.Context) {
 
 	var body struct {
 		Title          string `json:"title"`
+		TitleHi        string `json:"titleHi"`
 		Type           string `json:"type"`
 		YouTubeVideoID string `json:"youtubeVideoId"`
 		NoteContent    string `json:"noteContent"`
@@ -370,7 +378,7 @@ func AdminUpdateLesson(c *gin.Context) {
 	defer cancel()
 
 	res, err := config.GetCollection("lessons").UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{
-		"title": body.Title, "type": body.Type, "youtubeVideoId": extractYouTubeID(body.YouTubeVideoID),
+		"title": body.Title, "titleHi": body.TitleHi, "type": body.Type, "youtubeVideoId": extractYouTubeID(body.YouTubeVideoID),
 		"noteContent": body.NoteContent, "description": body.Description,
 		"durationMins": body.DurationMins, "order": body.Order, "isPremium": body.IsPremium,
 	}})
@@ -412,6 +420,12 @@ func GetCourseChaptersWithProgress(c *gin.Context) {
 	}
 	userIDStr, _ := c.Get("userId")
 	userID, _ := primitive.ObjectIDFromHex(userIDStr.(string))
+
+	// Premium courses are accessible only to premium users.
+	if courseIsPremium(courseID) && !userIsPremium(userID) {
+		utils.ErrorRes(c, http.StatusForbidden, "PREMIUM_REQUIRED", "This course is available to premium students only")
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -502,6 +516,15 @@ func GetChapterLessons(c *gin.Context) {
 		return
 	}
 
+	// A premium chapter, or any chapter inside a premium course, is locked for
+	// non-premium users.
+	isPremiumUser := userIsPremium(userID)
+	locked := chapter.IsPremium || (chapter.CourseID != nil && courseIsPremium(*chapter.CourseID))
+	if locked && !isPremiumUser {
+		utils.ErrorRes(c, http.StatusForbidden, "PREMIUM_REQUIRED", "This content is available to premium students only")
+		return
+	}
+
 	cursor, err := config.GetCollection("lessons").Find(ctx,
 		bson.M{"chapterId": chapterID},
 		options.Find().SetSort(bson.M{"order": 1}))
@@ -516,6 +539,9 @@ func GetChapterLessons(c *gin.Context) {
 	if lessons == nil {
 		lessons = []models.Lesson{}
 	}
+
+	// Hide content of individually-premium lessons from non-premium users.
+	redactPremiumLessons(lessons, isPremiumUser)
 
 	// Fetch user's completed lesson IDs for this course
 	var progress models.UserCourseProgress
@@ -552,6 +578,13 @@ func MarkLessonComplete(c *gin.Context) {
 	var lesson models.Lesson
 	if err := config.GetCollection("lessons").FindOne(ctx, bson.M{"_id": lessonID}).Decode(&lesson); err != nil {
 		utils.ErrorRes(c, http.StatusNotFound, "NOT_FOUND", "Lesson not found")
+		return
+	}
+
+	// Premium lessons (or lessons in a premium course) are off-limits to
+	// non-premium users.
+	if (lesson.IsPremium || courseIsPremium(lesson.CourseID)) && !userIsPremium(userID) {
+		utils.ErrorRes(c, http.StatusForbidden, "PREMIUM_REQUIRED", "This lesson is available to premium students only")
 		return
 	}
 

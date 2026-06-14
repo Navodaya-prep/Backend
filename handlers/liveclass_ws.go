@@ -69,6 +69,16 @@ func LiveClassWS(c *gin.Context) {
 		} else {
 			userName = name // fallback to query param
 		}
+
+		// Premium live classes are off-limits to non-premium students.
+		cid, _ := primitive.ObjectIDFromHex(classID)
+		var class models.LiveClass
+		if err := config.GetCollection("liveclasses").FindOne(ctx, bson.M{"_id": cid}).Decode(&class); err == nil {
+			if class.IsPremium && !user.IsPremium {
+				c.JSON(http.StatusForbidden, gin.H{"error": "premium required"})
+				return
+			}
+		}
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "token or adminToken required"})
 		return

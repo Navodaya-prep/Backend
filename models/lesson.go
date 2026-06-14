@@ -13,6 +13,7 @@ type Lesson struct {
 	ChapterID      primitive.ObjectID `bson:"chapterId" json:"chapterId"`
 	CourseID       primitive.ObjectID `bson:"courseId" json:"courseId"`
 	Title          string             `bson:"title" json:"title"`
+	TitleHi        string             `bson:"titleHi,omitempty" json:"titleHi,omitempty"`
 	Type           string             `bson:"type" json:"type"` // "video" | "note"
 	YouTubeVideoID string             `bson:"youtubeVideoId,omitempty" json:"youtubeVideoId,omitempty"`
 	NoteContent    string             `bson:"noteContent,omitempty" json:"noteContent,omitempty"`

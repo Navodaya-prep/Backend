@@ -23,6 +23,7 @@ import (
 func CreateLiveClass(c *gin.Context) {
 	var body struct {
 		Title       string `json:"title" binding:"required"`
+		TitleHi     string `json:"titleHi"`
 		Subject     string `json:"subject" binding:"required"`
 		TeacherName string `json:"teacherName" binding:"required"`
 		Description string `json:"description"`
@@ -38,6 +39,7 @@ func CreateLiveClass(c *gin.Context) {
 	class := models.LiveClass{
 		ID:          primitive.NewObjectID(),
 		Title:       body.Title,
+		TitleHi:     body.TitleHi,
 		Subject:     body.Subject,
 		TeacherName: body.TeacherName,
 		Description: body.Description,
@@ -272,6 +274,18 @@ func GetLiveClass(c *gin.Context) {
 		return
 	}
 
+	// Premium live classes are accessible only to premium users (admins exempt).
+	if class.IsPremium {
+		if _, isAdmin := c.Get("isAdmin"); !isAdmin {
+			userIDStr, _ := c.Get("userId")
+			userID, _ := primitive.ObjectIDFromHex(userIDStr.(string))
+			if !userIsPremium(userID) {
+				utils.ErrorRes(c, http.StatusForbidden, "PREMIUM_REQUIRED", "This live class is available to premium students only")
+				return
+			}
+		}
+	}
+
 	utils.Success(c, http.StatusOK, gin.H{"class": class}, "Success")
 }
 
@@ -288,6 +302,20 @@ func GetAgoraToken(c *gin.Context) {
 	role := utils.AgoraRoleSubscriber
 	if _, isAdmin := c.Get("isAdmin"); isAdmin {
 		role = utils.AgoraRolePublisher
+	} else {
+		// Student joining as audience — block premium classes for non-premium users.
+		classID, _ := primitive.ObjectIDFromHex(classIDStr)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		var class models.LiveClass
+		if err := config.GetCollection("liveclasses").FindOne(ctx, bson.M{"_id": classID}).Decode(&class); err == nil && class.IsPremium {
+			userIDStr, _ := c.Get("userId")
+			userID, _ := primitive.ObjectIDFromHex(userIDStr.(string))
+			if !userIsPremium(userID) {
+				utils.ErrorRes(c, http.StatusForbidden, "PREMIUM_REQUIRED", "This live class is available to premium students only")
+				return
+			}
+		}
 	}
 
 	token := utils.BuildAgoraToken(classIDStr, "", role, 7200)

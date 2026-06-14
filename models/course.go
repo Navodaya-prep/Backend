@@ -9,6 +9,7 @@ import (
 type Course struct {
 	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Title         string             `bson:"title" json:"title"`
+	TitleHi       string             `bson:"titleHi,omitempty" json:"titleHi,omitempty"`
 	Subject       string             `bson:"subject" json:"subject"`
 	ClassLevel    string             `bson:"classLevel" json:"classLevel"`
 	Thumbnail     string             `bson:"thumbnail" json:"thumbnail"`
@@ -25,6 +26,7 @@ type Chapter struct {
 	CourseID    *primitive.ObjectID `bson:"courseId,omitempty" json:"courseId,omitempty"`
 	SubjectID   *primitive.ObjectID `bson:"subjectId,omitempty" json:"subjectId,omitempty"`
 	Title       string              `bson:"title" json:"title"`
+	TitleHi     string              `bson:"titleHi,omitempty" json:"titleHi,omitempty"`
 	Description string              `bson:"description" json:"description"`
 	Order       int                 `bson:"order" json:"order"`
 	IsPremium   bool                `bson:"isPremium" json:"isPremium"`

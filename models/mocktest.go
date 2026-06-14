@@ -9,6 +9,7 @@ import (
 type MockTest struct {
 	ID           primitive.ObjectID   `bson:"_id,omitempty" json:"id"`
 	Title        string               `bson:"title" json:"title"`
+	TitleHi      string               `bson:"titleHi,omitempty" json:"titleHi,omitempty"`
 	Subject      string               `bson:"subject" json:"subject"`
 	Duration     int                  `bson:"duration" json:"duration"` // minutes
 	TotalMarks   int                  `bson:"totalMarks" json:"totalMarks"`

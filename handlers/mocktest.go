@@ -102,12 +102,32 @@ func GetMockTest(c *gin.Context) {
 		return
 	}
 
-	// Populate questions dynamically
+	// Premium tests are accessible only to premium users.
+	if test.IsPremium {
+		userIDStr, _ := c.Get("userId")
+		userID, _ := primitive.ObjectIDFromHex(userIDStr.(string))
+		if !userIsPremium(userID) {
+			utils.ErrorRes(c, http.StatusForbidden, "PREMIUM_REQUIRED", "This mock test is available to premium students only")
+			return
+		}
+	}
+
+	// Populate questions in the order defined by QuestionIDs
 	if len(test.QuestionIDs) > 0 {
 		qCursor, err := config.GetCollection("questions").Find(ctx, bson.M{"_id": bson.M{"$in": test.QuestionIDs}})
 		if err == nil {
-			qCursor.All(ctx, &test.Questions)
+			var fetched []models.Question
+			qCursor.All(ctx, &fetched)
 			qCursor.Close(ctx)
+			qMap := make(map[primitive.ObjectID]models.Question, len(fetched))
+			for _, q := range fetched {
+				qMap[q.ID] = q
+			}
+			for _, id := range test.QuestionIDs {
+				if q, ok := qMap[id]; ok {
+					test.Questions = append(test.Questions, q)
+				}
+			}
 		}
 	}
 
@@ -144,7 +164,13 @@ func SubmitMockTest(c *gin.Context) {
 		return
 	}
 
-	// Fetch questions in the same order as stored
+	// Premium tests can be submitted only by premium users.
+	if test.IsPremium && !userIsPremium(userID) {
+		utils.ErrorRes(c, http.StatusForbidden, "PREMIUM_REQUIRED", "This mock test is available to premium students only")
+		return
+	}
+
+	// Fetch questions and reorder to match QuestionIDs order
 	qCursor, err := config.GetCollection("questions").Find(ctx, bson.M{"_id": bson.M{"$in": test.QuestionIDs}})
 	if err != nil {
 		utils.ErrorRes(c, http.StatusInternalServerError, "FETCH_FAILED", "Failed to fetch questions")
@@ -152,8 +178,18 @@ func SubmitMockTest(c *gin.Context) {
 	}
 	defer qCursor.Close(ctx)
 
+	var fetchedQs []models.Question
+	qCursor.All(ctx, &fetchedQs)
+	qMap := make(map[primitive.ObjectID]models.Question, len(fetchedQs))
+	for _, q := range fetchedQs {
+		qMap[q.ID] = q
+	}
 	var questions []models.Question
-	qCursor.All(ctx, &questions)
+	for _, id := range test.QuestionIDs {
+		if q, ok := qMap[id]; ok {
+			questions = append(questions, q)
+		}
+	}
 
 	correct := 0
 	attemptAnswers := make([]models.AttemptAnswer, len(questions))
@@ -161,6 +197,7 @@ func SubmitMockTest(c *gin.Context) {
 	type DetailedResult struct {
 		QuestionID  primitive.ObjectID      `json:"questionId"`
 		Text        string                  `json:"text"`
+		TextHi      string                  `json:"textHi,omitempty"`
 		ImageURL    string                  `json:"imageUrl,omitempty"`
 		Options     []models.QuestionOption `json:"options"`
 		SelectedIdx int                     `json:"selectedIndex"`
@@ -189,6 +226,7 @@ func SubmitMockTest(c *gin.Context) {
 		detailed[i] = DetailedResult{
 			QuestionID:  q.ID,
 			Text:        q.Text,
+			TextHi:      q.TextHi,
 			ImageURL:    q.ImageURL,
 			Options:     q.Options,
 			SelectedIdx: selectedIdx,
@@ -295,6 +333,7 @@ func GetAttemptDetails(c *gin.Context) {
 	type DetailedResult struct {
 		QuestionID  primitive.ObjectID      `json:"questionId"`
 		Text        string                  `json:"text"`
+		TextHi      string                  `json:"textHi,omitempty"`
 		ImageURL    string                  `json:"imageUrl,omitempty"`
 		Options     []models.QuestionOption `json:"options"`
 		SelectedIdx int                     `json:"selectedIndex"`
@@ -320,6 +359,7 @@ func GetAttemptDetails(c *gin.Context) {
 		detailed = append(detailed, DetailedResult{
 			QuestionID:  q.ID,
 			Text:        q.Text,
+			TextHi:      q.TextHi,
 			ImageURL:    q.ImageURL,
 			Options:     q.Options,
 			SelectedIdx: a.SelectedIndex,
@@ -376,6 +416,7 @@ func GetUserAttempts(c *gin.Context) {
 				"totalMarks":    1,
 				"timeTaken":     1,
 				"completedAt":   1,
+				"answers":       1,
 				"test.title":    1,
 				"test.subject":  1,
 				"test.duration": 1,

@@ -23,6 +23,9 @@ func Setup(r *gin.Engine) {
 	// Contact form (public)
 	api.POST("/contact", handlers.SubmitContactMessage)
 
+	// Razorpay webhook (public — verified via signature, not JWT)
+	api.POST("/payments/webhook", handlers.RazorpayWebhook)
+
 	// Auth routes (public)
 	auth := api.Group("/auth")
 	{
@@ -214,6 +217,12 @@ func Setup(r *gin.Engine) {
 
 		// Push token registration
 		protected.POST("/users/push-token", handlers.RegisterPushToken)
+
+		// Payments (premium unlock)
+		protected.POST("/payments/create-order", handlers.CreatePremiumOrder)   // native UPI checkout
+		protected.POST("/payments/verify", handlers.VerifyPremiumPayment)       // verify SDK signature
+		protected.POST("/payments/create-link", handlers.CreatePremiumPaymentLink) // legacy link flow
+		protected.GET("/payments/status/:linkId", handlers.GetPaymentStatus)
 
 		// Doubts
 		protected.GET("/doubts", handlers.ListDoubts)

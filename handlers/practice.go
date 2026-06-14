@@ -44,6 +44,13 @@ func GetPracticeQuestions(c *gin.Context) {
 		questions = []models.Question{}
 	}
 
+	// Hide answer data for premium questions from non-premium users.
+	if userIDStr, ok := c.Get("userId"); ok {
+		if userID, err := primitive.ObjectIDFromHex(userIDStr.(string)); err == nil {
+			redactPremiumQuestions(questions, userIsPremium(userID))
+		}
+	}
+
 	utils.Success(c, http.StatusOK, gin.H{"questions": questions}, "Success")
 }
 
@@ -77,6 +84,15 @@ func SubmitPractice(c *gin.Context) {
 	var questions []models.Question
 	cursor.All(ctx, &questions)
 
+	// Non-premium users cannot submit premium questions — they are neither
+	// scored nor revealed (gate can't be bypassed via direct POST).
+	isPremium := false
+	if userIDStr, ok := c.Get("userId"); ok {
+		if userID, err := primitive.ObjectIDFromHex(userIDStr.(string)); err == nil {
+			isPremium = userIsPremium(userID)
+		}
+	}
+
 	correct := 0
 	type DetailedAnswer struct {
 		QuestionID   primitive.ObjectID `json:"questionId"`
@@ -86,8 +102,14 @@ func SubmitPractice(c *gin.Context) {
 		Explanation  string             `json:"explanation"`
 	}
 
-	detailed := make([]DetailedAnswer, len(questions))
+	// Preserve the client's positional answer keys ('0'+i) by iterating the
+	// original order; skipped (locked) questions just don't produce a result.
+	detailed := make([]DetailedAnswer, 0, len(questions))
+	total := 0
 	for i, q := range questions {
+		if !isPremium && q.IsPremium {
+			continue
+		}
 		key := string(rune('0' + i))
 		selectedIdx, exists := body.Answers[key]
 		if !exists {
@@ -97,16 +119,16 @@ func SubmitPractice(c *gin.Context) {
 		if isCorrect {
 			correct++
 		}
-		detailed[i] = DetailedAnswer{
+		total++
+		detailed = append(detailed, DetailedAnswer{
 			QuestionID:  q.ID,
 			SelectedIdx: selectedIdx,
 			CorrectIdx:  q.CorrectIndex,
 			IsCorrect:   isCorrect,
 			Explanation: q.Explanation,
-		}
+		})
 	}
 
-	total := len(questions)
 	percent := 0
 	if total > 0 {
 		percent = (correct * 100) / total

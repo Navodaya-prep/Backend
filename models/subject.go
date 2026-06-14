@@ -9,6 +9,7 @@ import (
 type Subject struct {
 	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Name        string             `bson:"name" json:"name"`
+	NameHi      string             `bson:"nameHi,omitempty" json:"nameHi,omitempty"`
 	Icon        string             `bson:"icon" json:"icon"`
 	Color       string             `bson:"color" json:"color"`
 	Description string             `bson:"description" json:"description"`
